@@ -1,39 +1,37 @@
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
-from backend.config.settings import settings
+# backend/monitoring/metrics.py
+from prometheus_client import (
+    Counter, Histogram, Gauge,
+    start_http_server, REGISTRY
+)
 import structlog
 
 logger = structlog.get_logger(__name__)
 
-# ── Prometheus Metrics ──────────────────────────────────────────────────────
+# ── Prometheus Metrics ─────────────────────────────────────────────────────
 
-# Request counters
 REQUEST_COUNT = Counter(
     "mh_platform_requests_total",
     "Total classification requests",
     ["emotion", "risk_level"]
 )
 
-# Latency histogram
 REQUEST_LATENCY = Histogram(
     "mh_platform_request_duration_ms",
     "Request processing time in milliseconds",
     buckets=[50, 100, 250, 500, 1000, 2500, 5000]
 )
 
-# Crisis alerts counter
 CRISIS_ALERTS = Counter(
     "mh_platform_crisis_alerts_total",
     "Total crisis-level detections",
     ["risk_level"]
 )
 
-# Active sessions gauge
 ACTIVE_SESSIONS = Gauge(
     "mh_platform_active_sessions",
     "Currently active user sessions"
 )
 
-# Model confidence distribution
 CONFIDENCE_HISTOGRAM = Histogram(
     "mh_platform_confidence_score",
     "Distribution of model confidence scores",
@@ -49,26 +47,42 @@ def record_request(
     is_crisis: bool
 ) -> None:
     """Record metrics for a completed request."""
-    REQUEST_COUNT.labels(
-        emotion=emotion,
-        risk_level=risk_level
-    ).inc()
+    try:
+        REQUEST_COUNT.labels(
+            emotion=emotion,
+            risk_level=risk_level
+        ).inc()
 
-    REQUEST_LATENCY.observe(latency_ms)
-    CONFIDENCE_HISTOGRAM.observe(confidence)
+        REQUEST_LATENCY.observe(latency_ms)
+        CONFIDENCE_HISTOGRAM.observe(confidence)
 
-    if is_crisis:
-        CRISIS_ALERTS.labels(risk_level=risk_level).inc()
+        if is_crisis:
+            CRISIS_ALERTS.labels(risk_level=risk_level).inc()
+
+    except Exception as e:
+        # Never let metrics crash the main app
+        logger.warning("Metrics recording failed", error=str(e))
 
 
 def start_metrics_server() -> None:
-    """Start Prometheus metrics HTTP server."""
-    if settings.ENABLE_METRICS:
-        try:
+    """
+    Start Prometheus metrics HTTP server.
+    Silently skips if port is already in use.
+    """
+    try:
+        from backend.config.settings import settings
+        if settings.ENABLE_METRICS:
             start_http_server(settings.METRICS_PORT)
             logger.info(
                 "Metrics server started",
-                port=settings.METRICS_PORT
+                port=settings.METRICS_PORT,
+                url=f"http://localhost:{settings.METRICS_PORT}/metrics"
             )
-        except Exception as e:
-            logger.warning("Could not start metrics server", error=str(e))
+    except OSError as e:
+        # Port already in use — ignore, metrics still work internally
+        logger.warning(
+            "Metrics server port already in use, skipping",
+            error=str(e)
+        )
+    except Exception as e:
+        logger.warning("Could not start metrics server", error=str(e))

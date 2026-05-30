@@ -1,16 +1,16 @@
+# backend/monitoring/__init__.py
 """
-Mental Health Agentic AI Platform - Backend Package
+Monitoring Package
 
-End-to-end Agentic AI platform for mental health intelligence featuring:
-- Transformer-based NLP emotion classification
-- RAG pipelines for wellness recommendations
-- Multi-agent orchestration
-- Explainability modules
-- Automated ML workflows
-- Evaluation and monitoring
-- Production deployment
+Observability layer including structured logging and Prometheus metrics.
+
+Usage:
+    from backend.monitoring.logger import setup_logging
+    from backend.monitoring.metrics import record_request, start_metrics_server
 """
 
-__version__ = "1.0.0"
-__author__ = "Mental Health Agentic AI Platform"
-__description__ = "Agentic AI platform for mental health intelligence"
+__all__ = [
+    "setup_logging",
+    "record_request",
+    "start_metrics_server",
+]

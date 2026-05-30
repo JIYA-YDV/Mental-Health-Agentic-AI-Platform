@@ -1,12 +1,12 @@
+# backend/api/schemas.py
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 
 
 class ClassificationRequest(BaseModel):
     """
     Input schema for emotion classification requests.
-    Validates and cleans incoming text data.
     """
     text: str = Field(
         ...,
@@ -16,7 +16,7 @@ class ClassificationRequest(BaseModel):
     )
     include_explanations: bool = Field(
         default=False,
-        description="Whether to include SHAP/LIME explanations"
+        description="Whether to include token-level explanations"
     )
     session_id: Optional[str] = Field(
         default=None,
@@ -25,7 +25,6 @@ class ClassificationRequest(BaseModel):
 
     @validator("text")
     def clean_text(cls, v):
-        """Strip whitespace and validate non-empty."""
         cleaned = v.strip()
         if not cleaned:
             raise ValueError("Text cannot be empty or whitespace only")
@@ -39,10 +38,10 @@ class PredictionScore(BaseModel):
 
 
 class ExplanationToken(BaseModel):
-    """Token-level explanation from SHAP/LIME."""
+    """Token-level explanation from explainer."""
     token: str
     importance: float
-    sentiment_direction: str  # "positive" | "negative" | "neutral"
+    sentiment_direction: str
 
 
 class WellnessRecommendation(BaseModel):
@@ -50,14 +49,14 @@ class WellnessRecommendation(BaseModel):
     title: str
     content: str
     relevance_score: float
-    category: str  # "breathing", "mindfulness", "crisis", "coping"
+    category: str
     source: str
 
 
 class CrisisAssessment(BaseModel):
     """Crisis risk evaluation result."""
     is_crisis: bool
-    risk_level: str  # "low" | "medium" | "high" | "critical"
+    risk_level: str
     risk_score: float = Field(ge=0.0, le=1.0)
     crisis_indicators: List[str]
     immediate_resources: List[str]
@@ -66,7 +65,12 @@ class CrisisAssessment(BaseModel):
 class ClassificationResponse(BaseModel):
     """
     Complete response schema containing all agent outputs.
+    Fix: model_config set to allow model_ prefix fields.
     """
+
+    # ── Tell Pydantic to allow 'model_' prefixed field names ──────────────
+    model_config = {"protected_namespaces": ()}
+
     # Core classification
     emotion: str
     confidence: float = Field(ge=0.0, le=1.0)
@@ -85,7 +89,7 @@ class ClassificationResponse(BaseModel):
     session_id: Optional[str] = None
     processing_time_ms: float
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    model_version: str = "1.0.0"
+    model_version: str = "1.0.0"   # This field caused the warning — now fixed
 
 
 class HealthResponse(BaseModel):
