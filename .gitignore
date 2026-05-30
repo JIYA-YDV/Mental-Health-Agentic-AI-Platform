@@ -1,8 +1,96 @@
+# ── Virtual Environments ───────────────────────────────────────────────────
 venv/
+.venv/
+env/
+ENV/
+
+# ── Python Cache ───────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pyw
+.Python
+
+# ── Environment Variables ──────────────────────────────────────────────────
 .env
+.env.local
+.env.*.local
+# Keep example file tracked
+!.env.example
+
+# ── IDE & Editors ──────────────────────────────────────────────────────────
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# ── Jupyter ────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── ML Experiment Tracking ─────────────────────────────────────────────────
 mlruns/
+mlartifacts/
+.mlflow/
+
+# ── ML Model Artifacts ────────────────────────────────────────────────────
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.h5
+*.pkl
+*.joblib
+
+# ── HuggingFace Cache ──────────────────────────────────────────────────────
+.cache/
+~/.cache/huggingface/
+
+# ── Vector Store / Database ────────────────────────────────────────────────
+chroma_db/
+*.db
+*.sqlite
+*.duckdb
+*.parquet
+
+# ── Build & Distribution ───────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+sdist/
+
+# ── Testing & Coverage ────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+logs/
+*.log.*
+
+# ── OS Files ──────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+Thumbs.db
+desktop.ini
+
+# ── Streamlit ─────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Docker ────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Temporary Files ───────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
