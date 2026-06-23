@@ -1,107 +1,127 @@
 # backend/api/schemas.py
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional
+"""
+Pydantic v2 schemas for API request/response contracts.
+Mirrors the data shapes produced by orchestrator + explainer modules.
+"""
 from datetime import datetime
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+# ── Request ────────────────────────────────────────────────────────────
 class ClassificationRequest(BaseModel):
-    """
-    Input schema for emotion classification requests.
-    """
+    """Input schema for emotion classification requests."""
+
     text: str = Field(
         ...,
         min_length=1,
         max_length=5000,
-        description="User input text for mental health analysis"
+        description="User input text for mental health analysis.",
     )
     include_explanations: bool = Field(
         default=False,
-        description="Whether to include token-level explanations"
+        description="Include token-level attribution in response.",
     )
     session_id: Optional[str] = Field(
         default=None,
-        description="Optional session ID for conversation tracking"
+        max_length=128,
+        description="Optional session ID for conversation tracking.",
     )
 
-    @validator("text")
-    def clean_text(cls, v):
+    @field_validator("text")
+    @classmethod
+    def clean_text(cls, v: str) -> str:
         cleaned = v.strip()
         if not cleaned:
-            raise ValueError("Text cannot be empty or whitespace only")
+            raise ValueError("Text cannot be empty or whitespace only.")
         return cleaned
 
 
+# ── Sub-schemas ────────────────────────────────────────────────────────
 class PredictionScore(BaseModel):
-    """Individual emotion prediction with confidence score."""
+    """Single emotion prediction with confidence."""
+
     label: str
     score: float = Field(ge=0.0, le=1.0)
 
 
 class ExplanationToken(BaseModel):
-    """Token-level explanation from explainer."""
+    """
+    Token-level attribution from the explainer.
+
+    Must match the dict shape returned by EmotionExplainer.explain():
+        {"token": str, "weight": float, "influence": "positive"|"negative"}
+    """
+
     token: str
-    importance: float
-    sentiment_direction: str
+    weight: float = Field(
+        ge=-1.5, le=1.5,
+        description="Signed attribution score. Positive = supports emotion.",
+    )
+    influence: Literal["positive", "negative"]
 
 
 class WellnessRecommendation(BaseModel):
-    """Wellness resource recommendation from RAG pipeline."""
+    """Wellness resource from the RAG pipeline."""
+
     title: str
     content: str
-    relevance_score: float
+    relevance_score: float = Field(ge=0.0, le=1.0)
     category: str
     source: str
 
 
 class CrisisAssessment(BaseModel):
-    """Crisis risk evaluation result."""
+    """Crisis-risk evaluation."""
+
     is_crisis: bool
-    risk_level: str
+    risk_level: Literal["low", "medium", "high", "critical"]
     risk_score: float = Field(ge=0.0, le=1.0)
-    crisis_indicators: List[str]
-    immediate_resources: List[str]
+    crisis_indicators: List[str] = Field(default_factory=list)
+    immediate_resources: List[str] = Field(default_factory=list)
 
 
+# ── Top-level Response ─────────────────────────────────────────────────
 class ClassificationResponse(BaseModel):
-    """
-    Complete response schema containing all agent outputs.
-    Fix: model_config set to allow model_ prefix fields.
-    """
+    """Full multi-agent analysis response."""
 
-    # ── Tell Pydantic to allow 'model_' prefixed field names ──────────────
-    model_config = {"protected_namespaces": ()}
+    # Allow `model_version` field without triggering Pydantic's
+    # "model_" protected-namespace warning.
+    model_config = ConfigDict(protected_namespaces=())
 
-    # Core classification
     emotion: str
     confidence: float = Field(ge=0.0, le=1.0)
     all_predictions: List[PredictionScore]
 
-    # Wellness recommendations from RAG
     recommendations: List[WellnessRecommendation]
-
-    # Crisis assessment
     crisis_assessment: CrisisAssessment
 
-    # Explainability (optional)
     explanations: Optional[List[ExplanationToken]] = None
+    explanation_summary: Optional[str] = Field(
+        default=None,
+        description="Human-readable explanation paragraph.",
+    )
 
-    # Metadata
     session_id: Optional[str] = None
-    processing_time_ms: float
+    processing_time_ms: float = Field(ge=0.0)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    model_version: str = "1.0.0"   # This field caused the warning — now fixed
+    model_version: str = "1.0.1"
 
 
+# ── Health / Errors ────────────────────────────────────────────────────
 class HealthResponse(BaseModel):
-    """Health check endpoint response."""
-    status: str
+    """Health-check response."""
+
+    status: Literal["healthy", "degraded", "unhealthy"]
     version: str
     models_loaded: bool
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ErrorResponse(BaseModel):
-    """Standardized error response."""
+    """Standardized error envelope."""
+
     error: str
     detail: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
