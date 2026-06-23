@@ -1,103 +1,110 @@
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
-from datetime import datetime
-import structlog
+# backend/api/routes.py
+"""
+FastAPI route handlers for the Mental Health Agentic AI Platform.
+"""
+from typing import Any, Dict
 
+import structlog
+from fastapi import APIRouter, HTTPException, status
+
+from backend.agents.orchestrator import AgentOrchestrator
 from backend.api.schemas import (
     ClassificationRequest,
     ClassificationResponse,
+    CrisisAssessment,
+    ExplanationToken,
     HealthResponse,
-    ErrorResponse,
     PredictionScore,
     WellnessRecommendation,
-    CrisisAssessment,
-    ExplanationToken
 )
-from backend.agents.orchestrator import AgentOrchestrator
+from backend.config.settings import settings
 from backend.explainability.explainer import explainer
-from backend.monitoring.metrics import record_request
 from backend.models.classifier import emotion_classifier
+from backend.monitoring.metrics import record_request
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 
-# Orchestrator instance
+# Singleton orchestrator (initialized once per process)
 orchestrator = AgentOrchestrator()
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Health
+# ──────────────────────────────────────────────────────────────────────
 @router.get(
     "/health",
     response_model=HealthResponse,
-    tags=["System"]
+    tags=["System"],
+    summary="Liveness + model-readiness probe",
 )
-async def health_check():
-    """
-    Health check endpoint.
-    Verifies application is running and models are loaded.
-    """
+async def health_check() -> HealthResponse:
+    """Return service status and confirm ML models are loaded."""
+    models_ok = emotion_classifier.is_loaded
     return HealthResponse(
-        status="healthy",
-        version="1.0.0",
-        models_loaded=emotion_classifier.is_loaded
+        status="healthy" if models_ok else "degraded",
+        version=settings.APP_VERSION,
+        models_loaded=models_ok,
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Classification (main endpoint)
+# ──────────────────────────────────────────────────────────────────────
 @router.post(
     "/classify",
     response_model=ClassificationResponse,
     tags=["Analysis"],
-    summary="Analyze emotion and provide mental health insights",
+    summary="Analyze emotion and provide mental-health insights",
     description=(
         "Accepts user text and returns emotion classification, "
-        "wellness recommendations, and crisis assessment. "
-        "Powered by multi-agent AI orchestration."
-    )
+        "wellness recommendations, and crisis assessment via "
+        "multi-agent orchestration."
+    ),
 )
-async def classify_text(request: ClassificationRequest):
-    """
-    Main classification endpoint.
-
-    Pipeline:
-    1. Validate input (handled by Pydantic schema)
-    2. Run multi-agent orchestration
-    3. Optionally generate explanations
-    4. Record monitoring metrics
-    5. Return structured response
-    """
+async def classify_text(
+    request: ClassificationRequest,
+) -> ClassificationResponse:
+    """Run the full multi-agent pipeline on a single text input."""
     logger.info(
         "Classification request received",
         text_length=len(request.text),
-        session_id=request.session_id
+        session_id=request.session_id,
+        include_explanations=request.include_explanations,
     )
 
     try:
-        # ── Run orchestrator ───────────────────────────────────────────
-        result = await orchestrator.process(
+        # ── Multi-agent orchestration ─────────────────────────────────
+        result: Dict[str, Any] = await orchestrator.process(
             text=request.text,
-            session_id=request.session_id
+            session_id=request.session_id,
         )
 
-        # ── Optional explanations ──────────────────────────────────────
+        # ── Optional token-level explanations ─────────────────────────
         explanations = None
+        explanation_summary = None
+
         if request.include_explanations:
-            raw_explanations = explainer.explain(
+            explanation_result = explainer.explain(
                 text=request.text,
-                emotion=result["emotion"]
+                primary_emotion=result["emotion"],
             )
             explanations = [
-                ExplanationToken(**e) for e in raw_explanations
+                ExplanationToken(**tok)
+                for tok in explanation_result.get("tokens", [])
             ]
+            explanation_summary = explanation_result.get("summary")
 
-        # ── Record metrics ─────────────────────────────────────────────
+        # ── Record Prometheus / structlog metrics ─────────────────────
         record_request(
             emotion=result["emotion"],
             risk_level=result["crisis_assessment"]["risk_level"],
             latency_ms=result["processing_time_ms"],
             confidence=result["confidence"],
-            is_crisis=result["crisis_assessment"]["is_crisis"]
+            is_crisis=result["crisis_assessment"]["is_crisis"],
         )
 
-        # ── Build response ─────────────────────────────────────────────
+        # ── Build and return response ─────────────────────────────────
         return ClassificationResponse(
             emotion=result["emotion"],
             confidence=result["confidence"],
@@ -108,25 +115,31 @@ async def classify_text(request: ClassificationRequest):
                 WellnessRecommendation(**r)
                 for r in result["recommendations"]
             ],
-            crisis_assessment=CrisisAssessment(
-                **result["crisis_assessment"]
-            ),
+            crisis_assessment=CrisisAssessment(**result["crisis_assessment"]),
             explanations=explanations,
-            session_id=result["session_id"],
-            processing_time_ms=result["processing_time_ms"]
+            explanation_summary=explanation_summary,
+            session_id=result.get("session_id"),
+            processing_time_ms=result["processing_time_ms"],
+            model_version=settings.APP_VERSION,
         )
 
     except ValueError as e:
-        logger.warning("Validation error in classification", error=str(e))
-        raise HTTPException(status_code=422, detail=str(e))
+        logger.warning("Validation error in /classify", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
 
     except RuntimeError as e:
-        logger.error("Runtime error in classification", error=str(e))
-        raise HTTPException(status_code=503, detail=str(e))
+        logger.error("Service unavailable in /classify", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
 
     except Exception as e:
-        logger.error("Unexpected error in classification", error=str(e))
+        logger.exception("Unexpected error in /classify", error=str(e))
         raise HTTPException(
-            status_code=500,
-            detail="Internal server error. Please try again."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error. Please try again.",
         )

@@ -12,9 +12,11 @@ Used by:
     - backend/api/routes.py  → `from backend.explainability.explainer import explainer`
 """
 import re
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 import structlog
+
 from backend.config.settings import settings
 
 logger = structlog.get_logger(__name__)
@@ -40,6 +42,10 @@ class EmotionExplainer:
 
     Handles sub-clinical signals (circumstantial stressors) alongside
     traditional clinical symptom vocabulary.
+
+    Thresholds (display threshold, min/max tokens) are sourced from
+    backend.config.settings so they can be tuned via .env without
+    code changes.
     """
 
     # ──────────────────────────────────────────────────────────────
@@ -49,7 +55,7 @@ class EmotionExplainer:
 
     EMOTION_LEXICONS: Dict[str, Dict[str, float]] = {
         "sadness": {
-            # Clinical symptoms (original set)
+            # Clinical symptoms
             "sad": 1.0,
             "depressed": 1.0,
             "depression": 1.0,
@@ -70,7 +76,7 @@ class EmotionExplainer:
             "drained": 0.65,
             "spin": 0.75,
             "spinning": 0.75,
-            "head": 0.5,            # context: "head spinning"
+            "head": 0.5,
             "dizzy": 0.6,
             "heavy": 0.4,
 
@@ -101,10 +107,10 @@ class EmotionExplainer:
             "enough": 0.45,
 
             # Mixed-signal dissonance indicators
-            "good": -0.10,          # discount positive self-talk in sad context
-            "fine": -0.15,          # common deflection word
+            "good": -0.10,
+            "fine": -0.15,
             "okay": -0.10,
-            "but": 0.30,            # contrast pivot: "I'm X but Y"
+            "but": 0.30,
             "however": 0.25,
         },
 
@@ -186,18 +192,15 @@ class EmotionExplainer:
         },
     }
 
-       # Thresholds now sourced from backend/config/settings.py
-    # (see settings.EXPLAINER_DISPLAY_THRESHOLD etc.)
-
     def __init__(self):
         self._compiled_patterns: Dict[str, re.Pattern] = {}
         self._compile_lexicon_patterns()
 
-    def _compile_lexicon_patterns(self):
+    def _compile_lexicon_patterns(self) -> None:
         """Pre-compile regex patterns for efficient multi-word matching."""
         for category, tokens in self.EMOTION_LEXICONS.items():
-            # Escape regex special chars; sort by length (longest first) so
-            # multi-word phrases match before their sub-tokens.
+            # Escape regex special chars; sort by length (longest first)
+            # so multi-word phrases match before their sub-tokens.
             escaped = [
                 re.escape(t) for t in sorted(tokens.keys(), key=len, reverse=True)
             ]
@@ -221,7 +224,8 @@ class EmotionExplainer:
             secondary_emotions: Other high-probability candidate labels.
 
         Returns:
-            Dictionary with 'tokens', 'summary', 'method', and 'confidence_indicators'.
+            Dictionary with 'tokens', 'summary', 'method', and
+            'confidence_indicators'.
         """
         text_lower = text.lower()
 
@@ -251,12 +255,13 @@ class EmotionExplainer:
         # Sort by absolute influence (desc), then alphabetically
         ranked = sorted(unique_attrs, key=lambda x: (-abs(x.weight), x.token))
 
-               visible = [
+        # Filter by display threshold OR top-N fallback
+        visible = [
             a for a in ranked
             if abs(a.weight) >= settings.EXPLAINER_DISPLAY_THRESHOLD
         ]
 
-        # Safety net: surface at least N tokens if anything matched
+        # Safety net: surface at least MIN tokens if anything matched
         if not visible and ranked:
             logger.debug(
                 "Explanation relaxed below display threshold",
@@ -274,7 +279,7 @@ class EmotionExplainer:
                     "weight": round(t.weight, 3),
                     "influence": "positive" if t.weight > 0 else "negative",
                 }
-                 for t in visible[: settings.EXPLAINER_MAX_TOKENS]  # cap at 10 tokens for clean UI
+                for t in visible[: settings.EXPLAINER_MAX_TOKENS]
             ],
             "summary": summary,
             "method": "lexicon_attribution",
@@ -290,7 +295,7 @@ class EmotionExplainer:
         if not pattern or not lexicon:
             return []
 
-        attributions = []
+        attributions: List[TokenAttribution] = []
         for match in pattern.finditer(text):
             token = match.group(1)
             base_weight = lexicon[token.lower()]
@@ -336,7 +341,7 @@ class EmotionExplainer:
             "disgust": "disgust",
             "neutral": "neutral",
         }
-        return mappings.get(primary, "sadness")  # default fallback
+        return mappings.get(primary, "sadness")
 
     @staticmethod
     def _deduplicate(attrs: List[TokenAttribution]) -> List[TokenAttribution]:
@@ -379,7 +384,7 @@ class EmotionExplainer:
 # Primary export — matches existing import in backend/api/routes.py
 explainer = EmotionExplainer()
 
-# Backward-compatible alias — safe to use in future refactors
+# Backward-compatible alias
 emotion_explainer = explainer
 
 __all__ = [
