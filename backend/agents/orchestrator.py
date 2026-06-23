@@ -5,6 +5,7 @@ import structlog
 from backend.agents.classification_agent import ClassificationAgent
 from backend.agents.crisis_agent import CrisisAgent
 from backend.agents.rag_agent import RAGAgent
+from backend.agents.semantic_interpreter import SemanticInterpreter
 
 logger = structlog.get_logger(__name__)
 

@@ -8,6 +8,11 @@ from backend.config.settings import settings
 logger = structlog.get_logger(__name__)
 
 
+# Fallback delta: if no doc meets SIMILARITY_THRESHOLD, accept the top
+# match when it is within this margin (handles diluted mixed-signal inputs).
+FALLBACK_THRESHOLD_DELTA = 0.15
+
+
 WELLNESS_KNOWLEDGE_BASE = [
     {
         "id": "breathing_001",
@@ -99,6 +104,38 @@ WELLNESS_KNOWLEDGE_BASE = [
         ),
         "category": "wellness",
         "emotions": ["sadness", "neutral", "fear"]
+    },
+    # ───────────────────────────────────────────────────────────────────
+    # 🆕 Commit 1: Financial / Career stress coverage
+    # ───────────────────────────────────────────────────────────────────
+    {
+        "id": "financial_001",
+        "title": "Coping with Financial Anxiety and Career Pressure",
+        "content": (
+            "Financial strain, unemployment, and low earnings can trigger "
+            "overwhelming sadness, dizziness, and a 'spinning head' sensation. "
+            "Try grounding techniques like slow box-breathing (4-4-4-4) and "
+            "break income goals into small daily micro-steps. Speak to a "
+            "financial counselor or trusted mentor to reduce isolation. "
+            "Remember: your self-worth is not measured by your salary. "
+            "Burnout from career uncertainty is real, and rest is productive."
+        ),
+        "category": "coping",
+        "emotions": ["sadness", "anxiety", "fear", "stress", "financial"]
+    },
+    {
+        "id": "mixed_signals_001",
+        "title": "When Positive and Negative Feelings Collide",
+        "content": (
+            "It is common to feel competent yet stuck, talented yet unrewarded, "
+            "or 'too good' but unable to make progress. This emotional dissonance "
+            "can cause mental fatigue, a spinning anxious sensation, and "
+            "frustration. Journaling your wins and worries side-by-side helps "
+            "externalize the conflict. A 10-minute daily reflection can clarify "
+            "what is in your control versus what is not, easing the overwhelm."
+        ),
+        "category": "mindfulness",
+        "emotions": ["sadness", "neutral", "anxiety", "overwhelm"]
     }
 ]
 
@@ -119,10 +156,8 @@ class RAGPipeline:
         try:
             logger.info("Initializing RAG pipeline")
 
-            # Create persist directory if it does not exist
             os.makedirs(settings.CHROMA_PERSIST_DIR, exist_ok=True)
 
-            # PersistentClient is the correct API for chromadb 0.4.x
             self.client = chromadb.PersistentClient(
                 path=settings.CHROMA_PERSIST_DIR
             )
@@ -147,7 +182,6 @@ class RAGPipeline:
 
     def _populate_knowledge_base(self) -> None:
         """Embed and store wellness documents."""
-        # Import here to avoid circular imports at module level
         from backend.models.embeddings import embedding_model
 
         logger.info("Populating knowledge base")
@@ -173,6 +207,19 @@ class RAGPipeline:
         )
         logger.info(f"Stored {len(texts)} documents in knowledge base")
 
+    @staticmethod
+    def _normalize_emotion(emotion: str) -> str:
+        """
+        Commit 2: Strip classifier suffix ("Sadness / Depression" -> "sadness").
+
+        The HF pipeline returns human-readable labels with slashes and
+        capitalization, but our KB tags are canonical lowercase. Cleaning
+        the label avoids polluting the query embedding with redundant tokens.
+        """
+        if not emotion:
+            return ""
+        return emotion.split("/")[0].strip().lower()
+
     def retrieve(
         self,
         query_text: str,
@@ -186,7 +233,18 @@ class RAGPipeline:
             raise RuntimeError("RAG pipeline not initialized")
 
         top_k = top_k or settings.TOP_K_RETRIEVAL
-        enhanced_query = f"{emotion} {query_text}"
+
+        # Commit 2: Use normalized emotion for cleaner embedding signal
+        clean_emotion = self._normalize_emotion(emotion)
+        enhanced_query = f"{clean_emotion} {query_text}".strip()
+
+        logger.debug(
+            "RAG query built",
+            raw_emotion=emotion,
+            clean_emotion=clean_emotion,
+            query=enhanced_query
+        )
+
         query_embedding = embedding_model.encode_single(enhanced_query).tolist()
 
         results = self.collection.query(
@@ -195,20 +253,54 @@ class RAGPipeline:
             include=["documents", "metadatas", "distances"]
         )
 
-        recommendations = []
+        # Build scored candidates first (do NOT filter inline)
+        scored_candidates: List[Dict[str, Any]] = []
         for i in range(len(results["ids"][0])):
             distance   = results["distances"][0][i]
             similarity = 1.0 - distance
+            metadata   = results["metadatas"][0][i]
 
-            if similarity >= settings.SIMILARITY_THRESHOLD:
-                metadata = results["metadatas"][0][i]
-                recommendations.append({
-                    "title":           metadata["title"],
-                    "content":         results["documents"][0][i],
-                    "relevance_score": round(similarity, 4),
-                    "category":        metadata["category"],
-                    "source":          "Mental Health Knowledge Base"
-                })
+            scored_candidates.append({
+                "title":           metadata["title"],
+                "content":         results["documents"][0][i],
+                "relevance_score": round(similarity, 4),
+                "category":        metadata["category"],
+                "source":          "Mental Health Knowledge Base",
+                "_raw_score":      similarity,  # internal, stripped before return
+            })
+
+        # Primary pass: keep entries meeting the strict threshold
+        recommendations = [
+            c for c in scored_candidates
+            if c["_raw_score"] >= settings.SIMILARITY_THRESHOLD
+        ]
+
+        # ───────────────────────────────────────────────────────────────
+        # Commit 3: Fallback for diluted mixed-signal inputs
+        # ───────────────────────────────────────────────────────────────
+        if not recommendations and scored_candidates:
+            top = max(scored_candidates, key=lambda c: c["_raw_score"])
+            fallback_floor = settings.SIMILARITY_THRESHOLD - FALLBACK_THRESHOLD_DELTA
+
+            if top["_raw_score"] >= fallback_floor:
+                logger.info(
+                    "RAG fallback triggered (mixed-signal input)",
+                    top_score=round(top["_raw_score"], 4),
+                    threshold=settings.SIMILARITY_THRESHOLD,
+                    fallback_floor=round(fallback_floor, 4),
+                    title=top["title"]
+                )
+                recommendations = [top]
+            else:
+                logger.warning(
+                    "RAG fallback skipped — top score too low",
+                    top_score=round(top["_raw_score"], 4),
+                    fallback_floor=round(fallback_floor, 4)
+                )
+
+        # Strip internal scoring key before returning to caller
+        for rec in recommendations:
+            rec.pop("_raw_score", None)
 
         return recommendations
 

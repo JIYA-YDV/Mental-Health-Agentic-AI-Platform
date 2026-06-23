@@ -8,7 +8,7 @@
 
 **End-to-end Agentic AI platform for mental health intelligence** featuring Transformer-based NLP classification, RAG pipelines, multi-agent orchestration, explainability, automated ML workflows, evaluation, monitoring, and deployment.
 
-> ⚠️ **IMPORTANT DISCLAIMER**: This is an AI research tool and NOT a substitute for professional mental health care. If you are in crisis, please contact the **988 Suicide & Crisis Lifeline** or text **HOME to 741741**.
+> ⚠️ **IMPORTANT DISCLAIMER**: This is an AI research tool and NOT a substitute for professional mental health care.
 
 ---
 
