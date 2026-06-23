@@ -15,6 +15,7 @@ import re
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import structlog
+from backend.config.settings import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -185,11 +186,8 @@ class EmotionExplainer:
         },
     }
 
-    # Minimum absolute weight to show in UI
-    DISPLAY_THRESHOLD = 0.25
-
-    # Fallback: ensure we return at least this many tokens even if all weak
-    MIN_TOKENS_TO_RETURN = 3
+       # Thresholds now sourced from backend/config/settings.py
+    # (see settings.EXPLAINER_DISPLAY_THRESHOLD etc.)
 
     def __init__(self):
         self._compiled_patterns: Dict[str, re.Pattern] = {}
@@ -253,17 +251,19 @@ class EmotionExplainer:
         # Sort by absolute influence (desc), then alphabetically
         ranked = sorted(unique_attrs, key=lambda x: (-abs(x.weight), x.token))
 
-        # Filter by display threshold OR top-N fallback
-        visible = [a for a in ranked if abs(a.weight) >= self.DISPLAY_THRESHOLD]
+               visible = [
+            a for a in ranked
+            if abs(a.weight) >= settings.EXPLAINER_DISPLAY_THRESHOLD
+        ]
 
-        # Safety net: surface at least MIN_TOKENS_TO_RETURN if anything matched
+        # Safety net: surface at least N tokens if anything matched
         if not visible and ranked:
             logger.debug(
                 "Explanation relaxed below display threshold",
-                threshold=self.DISPLAY_THRESHOLD,
+                threshold=settings.EXPLAINER_DISPLAY_THRESHOLD,
                 top_score=abs(ranked[0].weight),
             )
-            visible = ranked[: self.MIN_TOKENS_TO_RETURN]
+            visible = ranked[: settings.EXPLAINER_MIN_TOKENS]
 
         summary = self._generate_summary(visible, normalized_primary)
 
@@ -274,7 +274,7 @@ class EmotionExplainer:
                     "weight": round(t.weight, 3),
                     "influence": "positive" if t.weight > 0 else "negative",
                 }
-                for t in visible[:10]  # cap at 10 tokens for clean UI
+                 for t in visible[: settings.EXPLAINER_MAX_TOKENS]  # cap at 10 tokens for clean UI
             ],
             "summary": summary,
             "method": "lexicon_attribution",
