@@ -32,39 +32,41 @@
 ---
 
 ## 🏗️ Architecture
-┌──────────────────────────────────────────────────────────────────┐
-│ Streamlit Frontend (Port 8501) │
-└─────────────────────────────┬────────────────────────────────────┘
-│ HTTPS / JSON
-▼
-┌──────────────────────────────────────────────────────────────────┐
-│ FastAPI Backend (Port 8000) │
-│ /health /classify /docs (Swagger UI) │
-└─────────────────────────────┬────────────────────────────────────┘
-│
-▼
-┌──────────────────────────────────────────────────────────────────┐
-│ Agent Orchestrator (asyncio.gather) │
-│ │
-│ 1. ClassificationAgent (blocking — feeds downstream) │
-│ │ │
-│ ▼ │
-│ ┌─────────────────────┐ ┌─────────────────────┐ │
-│ │ 2. CrisisAgent │ ║ │ 3. RAGAgent │ │
-│ │ (risk scoring) │ ║ │ (vector retrieval) │ │
-│ └─────────────────────┘ ║ └─────────────────────┘ │
-│ │ ║ │ │
-│ └────────────╨──────────────┘ │
-│ ▼ │
-│ 4. WellnessAgent (aggregation + tip generation) │
-└─────────────────────────────┬────────────────────────────────────┘
-│
-▼
-┌──────────────────────────────────────────────────────────────────┐
-│ Model Layer │
-│ DistilRoBERTa │ MiniLM Embeddings │ ChromaDB Vector Store │
-└──────────────────────────────────────────────────────────────────┘
 
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Streamlit Frontend (Port 8501)                │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ HTTPS / JSON
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                FastAPI Backend (Port 8000)                       │
+│         /health    /classify    /docs (Swagger UI)               │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│               Agent Orchestrator (asyncio.gather)                │
+│                                                                  │
+│   1. ClassificationAgent  (blocking — feeds downstream)          │
+│              │                                                   │
+│              ▼                                                   │
+│   ┌─────────────────────┐    ┌─────────────────────┐             │
+│   │  2. CrisisAgent     │ ║  │  3. RAGAgent        │             │
+│   │  (risk scoring)     │ ║  │  (vector retrieval) │             │
+│   └─────────────────────┘ ║  └─────────────────────┘             │
+│              │            ║              │                       │
+│              └────────────╨──────────────┘                       │
+│                           ▼                                      │
+│   4. WellnessAgent (aggregation + tip generation)                │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                          Model Layer                             │
+│   DistilRoBERTa  │  MiniLM Embeddings  │  ChromaDB Vector Store  │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 **Why this design?** Crisis assessment and KB retrieval are independent of each other but both depend on classification → ideal for `asyncio.gather()`. Cuts total latency by ~40% vs sequential execution.
 
@@ -90,12 +92,14 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Python **3.10+** (tested on 3.10.11)
 - 8GB+ RAM (transformer models)
 - Git
 
 ### 1. Clone & Setup
 
+```bash
 git clone https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform.git
 cd Mental-Health-Agentic-AI-Platform
 
@@ -103,32 +107,63 @@ python -m venv venv
 
 # Windows
 venv\Scripts\activate
+
 # Mac/Linux
 source venv/bin/activate
+```
 
-2. Install Dependencies
-   python -m pip install --upgrade pip
+### 2. Install Dependencies
+
+```bash
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-3. Configure Environment
-  # Windows
+```
+
+> 📦 First run downloads ~500MB of model weights (cached afterwards).
+
+### 3. Configure Environment
+
+```bash
+# Windows
 copy .env.example .env
+
 # Mac/Linux
 cp .env.example .env
-4. Start Backend (Terminal 1)
+```
+
+### 4. Start Backend (Terminal 1)
+
+```bash
 python -m uvicorn backend.main:app --reload --port 8000
-5. Start Frontend (Terminal 2)
+```
+
+Expected output:
+
+```
+INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     Application startup complete.
+```
+
+### 5. Start Frontend (Terminal 2)
+
+```bash
 streamlit run frontend/app.py
-Access:
+```
 
-🖥️ UI: http://localhost:8501
-🔌 API: http://localhost:8000
-📚 Docs: http://localhost:8000/docs
-📊 Metrics: http://localhost:8001/metrics
+**Access:**
 
-🧪 Testing
-The project ships with a professional test suite (59 tests, 74.4% coverage, <8s runtime) using mocked ML models for fast feedback.
+- 🖥️ UI: http://localhost:8501
+- 🔌 API: http://localhost:8000
+- 📚 Docs: http://localhost:8000/docs
+- 📊 Metrics: http://localhost:8001/metrics
 
+---
 
+## 🧪 Testing
+
+The project ships with a professional test suite (**59 tests, 74.4% coverage, <8s runtime**) using mocked ML models for fast feedback.
+
+```bash
 # Run all tests
 pytest tests/ -v
 
@@ -144,9 +179,11 @@ pytest tests/integration/ -v
 # Generate HTML coverage report
 pytest tests/ --cov=backend --cov-report=html
 # Then open htmlcov/index.html
-Test Architecture
-text
+```
 
+### Test Architecture
+
+```
 tests/
 ├── conftest.py              # Shared fixtures with mocked ML models
 ├── unit/                    # 41 fast unit tests (no I/O)
@@ -158,31 +195,40 @@ tests/
 │   ├── test_api.py          # FastAPI endpoint contracts
 │   └── test_orchestrator.py # Multi-agent flow
 └── _legacy/                 # Archived auto-generated tests
-Coverage Highlights
-Module	Coverage
-schemas.py, settings.py, orchestrator.py, logger.py	100%
-explainer.py	87.8%
-crisis_agent.py	83.3%
-metrics.py	77.8%
-routes.py, rag_pipeline.py	69–76%
-Total	74.4%
-📡 API Reference
-POST /classify
+```
+
+### Coverage Highlights
+
+| Module | Coverage |
+|--------|----------|
+| `schemas.py`, `settings.py`, `orchestrator.py`, `logger.py` | **100%** |
+| `explainer.py` | **87.8%** |
+| `crisis_agent.py` | **83.3%** |
+| `metrics.py` | **77.8%** |
+| `routes.py`, `rag_pipeline.py` | **69–76%** |
+| **Total** | **74.4%** |
+
+---
+
+## 📡 API Reference
+
+### `POST /classify`
+
 Analyze text and return emotion + crisis assessment + recommendations.
 
-Request:
+**Request:**
 
-JSON
-
+```json
 {
   "text": "I've been feeling really anxious about work lately",
   "include_explanations": true,
   "session_id": "optional-id-123"
 }
-Response:
+```
 
-JSON
+**Response:**
 
+```json
 {
   "emotion": "Fear / Anxiety",
   "confidence": 0.89,
@@ -215,22 +261,28 @@ JSON
   "model_version": "1.0.1",
   "timestamp": "2026-06-26T18:40:12.430718Z"
 }
-GET /health
-JSON
+```
 
+### `GET /health`
+
+```json
 {
   "status": "healthy",
   "version": "1.0.1",
   "models_loaded": true,
   "timestamp": "2026-06-26T18:40:12Z"
 }
-Full interactive docs: http://localhost:8000/docs
+```
 
-⚙️ Configuration
-All settings are environment-variable driven via pydantic-settings. Override any value in .env:
+Full interactive docs: **http://localhost:8000/docs**
 
-env
+---
 
+## ⚙️ Configuration
+
+All settings are environment-variable driven via `pydantic-settings`. Override any value in `.env`:
+
+```env
 # Application
 DEBUG=false
 LOG_LEVEL=INFO
@@ -258,9 +310,13 @@ CRISIS_CONFIDENCE_THRESHOLD=0.75
 # Monitoring
 ENABLE_METRICS=true
 METRICS_PORT=8001
-📁 Project Structure
-text
+```
 
+---
+
+## 📁 Project Structure
+
+```
 Mental-Health-Agentic-AI-Platform/
 ├── .github/workflows/
 │   └── ci.yml                       # GitHub Actions pipeline
@@ -301,8 +357,13 @@ Mental-Health-Agentic-AI-Platform/
 ├── requirements.txt
 ├── .env.example
 └── README.md
-🐳 Docker Deployment
+```
 
+---
+
+## 🐳 Docker Deployment
+
+```bash
 # Build and start everything
 docker-compose -f docker/docker-compose.yml up --build
 
@@ -314,53 +375,129 @@ docker-compose logs -f backend
 
 # Stop
 docker-compose down
-📊 Implementation Status
-Honest snapshot of what's built vs planned. This project values transparency over marketing.
+```
 
-Component	Status	Notes
-Emotion Classifier (DistilRoBERTa, 7-class)	✅ Production	
-Multi-Agent Orchestrator (async)	✅ Production	100% test coverage
-RAG Pipeline (ChromaDB + fallback)	✅ Production	
-Crisis Detection (keyword + confidence)	✅ Production	
-Token Explainability (lexicon-based)	✅ Production	SHAP planned for v1.2
-Streamlit Dashboard	✅ Production	
-FastAPI Backend + auto-docs	✅ Production	
-Test Suite (59 tests, 74.4% coverage)	✅ Production	
-GitHub Actions CI	✅ Production	
-Prometheus Metrics	🟡 Beta	Endpoint live; dashboards pending
-Docker Compose Deployment	🟡 Beta	Works locally; cloud TBD
-Live Public Demo	🔴 Roadmap	v1.2 target
-ML Evaluation Harness (F1 / confusion matrix)	🔴 Roadmap	v1.1 target
-Fine-tuned Domain Model	🔴 Roadmap	v1.2 target
-LangGraph Migration	🔴 Roadmap	v1.3 target
-MLflow Experiment Tracking	🔴 Roadmap	v1.3 target
-See ROADMAP.md for upcoming work.
+---
 
-🤝 Contributing
-Fork the repo
-Create a feature branch: git checkout -b feat/your-feature
-Make sure tests pass: pytest tests/ -v
-Maintain coverage ≥ 70%: pytest --cov=backend --cov-fail-under=70
-Commit using conventional commits: feat:, fix:, test:, docs:, refactor:
-Push & open a Pull Request
+## 📊 Implementation Status
+
+Honest snapshot of what's built vs planned. This project values **transparency over marketing**.
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Emotion Classifier (DistilRoBERTa, 7-class) | ✅ Production | |
+| Multi-Agent Orchestrator (async) | ✅ Production | 100% test coverage |
+| RAG Pipeline (ChromaDB + fallback) | ✅ Production | |
+| Crisis Detection (keyword + confidence) | ✅ Production | |
+| Token Explainability (lexicon-based) | ✅ Production | SHAP planned for v1.2 |
+| Streamlit Dashboard | ✅ Production | |
+| FastAPI Backend + auto-docs | ✅ Production | |
+| Test Suite (59 tests, 74.4% coverage) | ✅ Production | |
+| GitHub Actions CI | ✅ Production | |
+| Prometheus Metrics | 🟡 Beta | Endpoint live; dashboards pending |
+| Docker Compose Deployment | 🟡 Beta | Works locally; cloud TBD |
+| Live Public Demo | 🔴 Roadmap | v1.2 target |
+| ML Evaluation Harness (F1 / confusion matrix) | 🔴 Roadmap | v1.1 target |
+| Fine-tuned Domain Model | 🔴 Roadmap | v1.2 target |
+| LangGraph Migration | 🔴 Roadmap | v1.3 target |
+| MLflow Experiment Tracking | 🔴 Roadmap | v1.3 target |
+
+See [ROADMAP.md](ROADMAP.md) for upcoming work.
+
+---
+
+## 🚨 Troubleshooting
+
+<details>
+<summary><strong>ImportError: cannot import name 'cached_download'</strong></summary>
+
+Newer `huggingface_hub` removed `cached_download`. Fix:
+
+```bash
+pip install sentence-transformers==2.7.0
+```
+
+</details>
+
+<details>
+<summary><strong>ModuleNotFoundError: No module named 'backend'</strong></summary>
+
+Run from project root, not inside `backend/`:
+
+```bash
+cd Mental-Health-Agentic-AI-Platform
+python -m uvicorn backend.main:app --reload
+```
+
+</details>
+
+<details>
+<summary><strong>ChromaDB persistence errors on Windows</strong></summary>
+
+Stop backend, then:
+
+```powershell
+Remove-Item -Recurse -Force .\chroma_db
+```
+
+Restart — collection will be re-indexed automatically.
+
+</details>
+
+<details>
+<summary><strong>Force CPU even if CUDA is available</strong></summary>
+
+In `backend/models/classifier.py`, hard-code `device = -1`. Or set `CUDA_VISIBLE_DEVICES=""` env var.
+
+</details>
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feat/your-feature`
+3. **Make sure tests pass:** `pytest tests/ -v`
+4. **Maintain coverage ≥ 70%:** `pytest --cov=backend --cov-fail-under=70`
+5. Commit using conventional commits: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`
+6. Push & open a Pull Request
+
 CI will automatically run tests on Python 3.10 + 3.11.
 
-⚠️ Safety & Ethics
-This platform cannot:
+---
 
-Diagnose mental health conditions
-Replace licensed therapists or psychiatrists
-Handle emergency crises
-If you or someone you know is in crisis:
+## ⚠️ Safety & Ethics
 
-🇺🇸 988 Suicide & Crisis Lifeline (call or text)
-🇺🇸 Text HOME to 741741 (Crisis Text Line)
-🌍 International directory
-📄 License
-MIT — see LICENSE.
+This platform **cannot**:
 
-🙏 Acknowledgments
-HuggingFace Transformers — model ecosystem
-j-hartmann — base emotion model
-ChromaDB — embedded vector store
-FastAPI & Streamlit — the magic that makes this work
+- Diagnose mental health conditions
+- Replace licensed therapists or psychiatrists
+- Handle emergency crises
+
+**If you or someone you know is in crisis:**
+
+- 🇺🇸 **988** Suicide & Crisis Lifeline (call or text)
+- 🇺🇸 Text **HOME** to **741741** (Crisis Text Line)
+- 🌍 [International directory](https://www.iasp.info/resources/Crisis_Centres/)
+
+---
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## 🙏 Acknowledgments
+
+- [HuggingFace Transformers](https://huggingface.co/) — model ecosystem
+- [j-hartmann](https://huggingface.co/j-hartmann/emotion-english-distilroberta-base) — base emotion model
+- [ChromaDB](https://www.trychroma.com/) — embedded vector store
+- [FastAPI](https://fastapi.tiangolo.com/) & [Streamlit](https://streamlit.io/) — the magic that makes this work
+
+---
+
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/JIYA-YDV">Jiya Yadav</a> for mental health awareness.<br>
+  ⭐ If this project helps you, please consider starring the repo!
+</p>
