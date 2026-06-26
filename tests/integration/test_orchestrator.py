@@ -69,9 +69,37 @@ async def test_orchestrator_echoes_session_id(orchestrator_with_mocks):
     )
     assert result["session_id"] == "session-xyz"
 
-
 @pytest.mark.asyncio
 async def test_orchestrator_measures_latency(orchestrator_with_mocks):
+    """
+    Verify that processing_time_ms is populated and within sane bounds.
+    
+    Note: With fully mocked agents the value can be 0.0 on fast machines,
+    so we assert >= 0 (non-negative float) rather than > 0.
+    """
     result = await orchestrator_with_mocks.process(text="hi")
-    assert result["processing_time_ms"] > 0
+    assert "processing_time_ms" in result
+    assert isinstance(result["processing_time_ms"], (int, float))
+    assert result["processing_time_ms"] >= 0.0
     assert result["processing_time_ms"] < 10_000  # < 10 sec sanity check
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_latency_with_real_delay(orchestrator_with_mocks):
+    """
+    Verify timer actually measures elapsed time by injecting a small delay.
+    """
+    import asyncio
+    
+    # Wrap one of the mock agents to sleep briefly
+    original_run = orchestrator_with_mocks.classification_agent.run
+    
+    async def slow_run(text):
+        await asyncio.sleep(0.05)  # 50ms artificial delay
+        return await original_run(text)
+    
+    orchestrator_with_mocks.classification_agent.run = slow_run
+    
+    result = await orchestrator_with_mocks.process(text="hi")
+    assert result["processing_time_ms"] >= 40.0, \
+        f"Timer should record at least ~50ms, got {result['processing_time_ms']}"

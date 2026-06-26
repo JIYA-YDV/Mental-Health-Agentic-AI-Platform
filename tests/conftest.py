@@ -74,12 +74,18 @@ def mock_classifier():
 
 @pytest.fixture
 def mock_embedding_model():
-    """Mock sentence-transformers embedding model."""
+    """
+    Mock sentence-transformers embedding model.
+    
+    Returns numpy-like arrays since the real code calls `.tolist()` 
+    on the output (sentence-transformers returns np.ndarray).
+    """
+    import numpy as np
     mock = MagicMock()
     mock.is_loaded = True
-    # Encode returns a fake 384-dim vector (MiniLM size)
-    mock.encode.return_value = [[0.1] * 384]
-    mock.encode_single.return_value = [0.1] * 384
+    # encode() returns a 2D np.ndarray; encode_single() returns 1D
+    mock.encode.return_value = np.array([[0.1] * 384])
+    mock.encode_single.return_value = np.array([0.1] * 384)
     return mock
 
 
