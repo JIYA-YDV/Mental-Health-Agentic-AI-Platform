@@ -36,12 +36,13 @@ jobs:
         run: |
           python -c "import torch, transformers, fastapi, pydantic; print('Core packages OK')"
 
-      - name: Run test suite with coverage
+      - name: Run test suite (coverage + JUnit XML)
         run: |
           pytest tests/ \
             --cov=backend \
             --cov-report=xml \
             --cov-report=term-missing \
+            --junitxml=junit.xml -o junit_family=legacy \
             --cov-fail-under=70
 
       - name: Upload coverage to Codecov
@@ -53,12 +54,20 @@ jobs:
           name: codecov-${{ matrix.python-version }}
           fail_ci_if_error: false
 
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && matrix.python-version == '3.10' }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-py${{ matrix.python-version }}
-          path: coverage.xml
+          path: |
+            coverage.xml
+            junit.xml
           retention-days: 14
 
   lint:
