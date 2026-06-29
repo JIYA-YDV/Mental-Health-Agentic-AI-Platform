@@ -1,0 +1,86 @@
+{
+  "accuracy": 0.914,
+  "macro_f1": 0.8693496396605591,
+  "weighted_f1": 0.9160031778362672,
+  "per_class": {
+    "anger": {
+      "precision": 0.8541666666666666,
+      "recall": 0.9534883720930233,
+      "f1": 0.9010989010989011,
+      "support": 129
+    },
+    "fear": {
+      "precision": 0.8521739130434782,
+      "recall": 0.875,
+      "f1": 0.8634361233480177,
+      "support": 112
+    },
+    "joy": {
+      "precision": 0.9846938775510204,
+      "recall": 0.9168646080760094,
+      "f1": 0.949569495694957,
+      "support": 421
+    },
+    "sadness": {
+      "precision": 0.9230769230769231,
+      "recall": 0.9169435215946844,
+      "f1": 0.92,
+      "support": 301
+    },
+    "surprise": {
+      "precision": 0.62,
+      "recall": 0.8378378378378378,
+      "f1": 0.7126436781609196,
+      "support": 37
+    }
+  },
+  "crisis_precision": 0.9299516908212561,
+  "crisis_recall": 0.9322033898305084,
+  "crisis_f1": 0.9310761789600969,
+  "labels_used": [
+    "anger",
+    "fear",
+    "joy",
+    "sadness",
+    "surprise"
+  ],
+  "excluded_predictions": 0,
+  "confusion_matrix": [
+    [
+      0,
+      2,
+      2,
+      1,
+      1
+    ],
+    [
+      4,
+      0,
+      0,
+      1,
+      9
+    ],
+    [
+      5,
+      2,
+      0,
+      21,
+      7
+    ],
+    [
+      10,
+      10,
+      3,
+      0,
+      2
+    ],
+    [
+      2,
+      3,
+      1,
+      0,
+      0
+    ]
+  ],
+  "confusion_summary": "**Most confused pair:** `joy` misclassified as `sadness` (21 times, 24.4% of all errors)."
+}
