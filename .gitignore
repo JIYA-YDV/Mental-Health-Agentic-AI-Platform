@@ -94,3 +94,11 @@ temp/
 *.tmp
 *.bak
 *.swp
+
+# Add to .gitignore
+models/finetuned-emotion/
+*.zip
+finetuned_emotion_model.zip
+# Fine-tuned models (download from HF Hub instead)
+models/finetuned-emotion/
+*.zip
