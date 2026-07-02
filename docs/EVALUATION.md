@@ -1,5 +1,5 @@
 # 📊 Model Evaluation Report
-> Auto-generated on **2026-06-29 16:04 UTC** by `evaluation/benchmark.py`.
+> Auto-generated on **2026-07-02 19:58 UTC** by `evaluation/benchmark.py`.
 > Re-run with: `python -m evaluation.benchmark --samples 1000`
 
 ---
@@ -8,9 +8,9 @@
 
 | Metric | Value | Grade |
 |--------|-------|-------|
-| **Macro F1** | **0.869** | 🏆 Excellent |
-| **Weighted F1** | **0.916** | |
-| **Accuracy** | **0.914** | |
+| **Macro F1** | **0.884** | 🏆 Excellent |
+| **Weighted F1** | **0.913** | |
+| **Accuracy** | **0.879** | |
 | **Sample Count** | 1000 | |
 
 ---
@@ -33,11 +33,11 @@ The evaluation uses **macro-averaged F1** as the headline metric to weight all e
 
 | Emotion | Precision | Recall | F1 | Support |
 |---------|-----------|--------|-----|---------|
-| anger | 0.854 | 0.953 | 0.901 | 129 |
-| fear | 0.852 | 0.875 | 0.863 | 112 |
-| joy | 0.985 | 0.917 | 0.950 | 421 |
-| sadness | 0.923 | 0.917 | 0.920 | 301 |
-| surprise | 0.620 | 0.838 | 0.713 | 37 |
+| anger | 0.938 | 0.930 | 0.934 | 129 |
+| fear | 0.886 | 0.902 | 0.894 | 112 |
+| joy | 0.986 | 0.808 | 0.888 | 421 |
+| sadness | 0.967 | 0.967 | 0.967 | 301 |
+| surprise | 0.750 | 0.730 | 0.740 | 37 |
 
 ![Per-class F1 scores](../evaluation/results/per_class_f1.png)
 
@@ -47,7 +47,7 @@ The evaluation uses **macro-averaged F1** as the headline metric to weight all e
 
 ![Confusion Matrix](../evaluation/results/confusion_matrix.png)
 
-**Most confused pair:** `joy` misclassified as `sadness` (21 times, 24.4% of all errors).
+**Most confused pair:** `fear` misclassified as `surprise` (7 times, 15.6% of all errors).
 
 ---
 
@@ -57,9 +57,9 @@ A subset metric: how reliably does the model identify high-risk emotions (sadnes
 
 | Metric | Value |
 |--------|-------|
-| **Combined Sadness + Fear Recall** | 0.932 |
-| **Combined Sadness + Fear Precision** | 0.930 |
-| **False Negative Rate** | 0.068 |
+| **Combined Sadness + Fear Recall** | 0.964 |
+| **Combined Sadness + Fear Precision** | 0.959 |
+| **False Negative Rate** | 0.036 |
 
 > ⚠️ False negatives (missed crisis signals) are the most dangerous error type in mental health applications.
 

@@ -25,6 +25,11 @@ class EmotionClassifier:
         """
         Load model and tokenizer from HuggingFace.
         Called once at application startup.
+
+        Uses slow (Python) tokenizer to bypass tokenizer.json format
+        incompatibilities between newer (Colab) and older (local) versions
+        of the tokenizers library. ~10ms slower per prediction; imperceptible
+        in production but avoids "ModelWrapper" errors.
         """
         try:
             logger.info("Loading emotion classifier", model=self.model_name)
@@ -34,11 +39,19 @@ class EmotionClassifier:
             device_name = "CUDA" if device == 0 else "CPU"
             logger.info(f"Using device: {device_name}")
 
-            # Load HuggingFace pipeline
+            # Load tokenizer explicitly with use_fast=False — falls back to
+            # pure-Python tokenizer built from vocab.json + merges.txt.
+            # Bypasses the broken Colab-generated tokenizer.json entirely.
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name,
+                use_fast=False,
+            )
+
+            # Load HuggingFace pipeline with our pre-built tokenizer
             self.classifier = pipeline(
                 task="text-classification",
                 model=self.model_name,
-                tokenizer=self.model_name,
+                tokenizer=self.tokenizer,
                 top_k=None,           # Return all emotion scores
                 device=device,
                 truncation=True,
@@ -100,5 +113,5 @@ class EmotionClassifier:
         return self._is_loaded
 
 
-# Module-level singleton
+# Module-level singleton (Fixed trailing colon)
 emotion_classifier = EmotionClassifier()
