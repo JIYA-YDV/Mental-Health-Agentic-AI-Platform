@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000, ge=1, le=65535)
 
     # ── Model Configuration ────────────────────────────────────────────
-    EMOTION_MODEL: str = "j-hartmann/emotion-english-distilroberta-base"
+    EMOTION_MODEL: str = "YDVJIYA/distilroberta-base-finetuned-emotion"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     MAX_SEQUENCE_LENGTH: int = Field(default=512, ge=64, le=2048)
     BATCH_SIZE: int = Field(default=16, ge=1, le=128)
