@@ -10,8 +10,10 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1-EE4C2C)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Macro F1](https://img.shields.io/badge/macro_F1-0.87-brightgreen)](docs/EVALUATION.md)
+[![Macro F1](https://img.shields.io/badge/macro_F1-0.89_(fine--tuned)-brightgreen)](docs/FINE_TUNING.md)
+[![HF Hub](https://img.shields.io/badge/🤗-Model_on_Hub-yellow)](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion)
 [![Crisis Recall](https://img.shields.io/badge/crisis_recall-93%25-brightgreen)](docs/EVALUATION.md)
+- 🚀 **Fine-tuned DistilRoBERTa** on 16K samples, improving baseline from 0.87 → 0.89 F1 ([model on HF](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion))
 
 **Production-grade multi-agent AI platform for mental health intelligence.** Built with Transformer-based NLP, retrieval-augmented generation, async multi-agent orchestration, explainability, structured monitoring, and full CI/CD.
 
