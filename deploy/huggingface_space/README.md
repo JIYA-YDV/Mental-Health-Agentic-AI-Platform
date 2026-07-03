@@ -9,6 +9,7 @@ app_file: app.py
 pinned: true
 license: mit
 short_description: Multi-agent emotion analysis with fine-tuned DistilRoBERTa
+python_version: "3.10"
 ---
 
 # 🧠 Mental Health Agentic AI Platform

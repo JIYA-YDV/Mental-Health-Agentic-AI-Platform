@@ -14,7 +14,8 @@ import time
 from typing import Any, Dict, List
 
 import streamlit as st
-
+import os
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 # ═══════════════════════════════════════════════════════════════════
 # PAGE CONFIG (must be first Streamlit command)
 # ═══════════════════════════════════════════════════════════════════
@@ -342,13 +343,32 @@ def main():
     
     # Input section
     st.subheader("💬 Share what's on your mind")
-    default_text = "I've been feeling really overwhelmed lately with work and money problems."
+
+    # Preset examples for quick demo
+    example_options = {
+        "— Select an example (or type your own) —": "",
+        "🔴 Clear sadness signal": "I feel hopeless and exhausted lately, nothing seems to bring me joy anymore.",
+        "😰 Anxiety signal": "I can't stop worrying about my exam tomorrow, my heart is racing.",
+        "😊 Positive emotion": "Just got promoted at work! I feel so excited and grateful.",
+        "😠 Anger": "I'm so frustrated with my roommate, they never clean up after themselves.",
+        "🤔 Mixed signal (edge case)": "I've been feeling really wired and demotivated lately with work problems.",
+        "🚨 Crisis signal (triggers alert)": "I feel completely alone and don't know if I can keep going anymore.",
+    }
+
+    selected_example = st.selectbox(
+        "Try an example:",
+        options=list(example_options.keys()),
+        index=1,  # default to sadness example
+    )
+
+    default_text = example_options[selected_example]
+
     text_input = st.text_area(
         "Your thoughts or feelings:",
         value=default_text,
         height=120,
         max_chars=5000,
-        placeholder="Type here...",
+        placeholder="Type here or select an example above...",
     )
     
     col1, col2 = st.columns([1, 3])
