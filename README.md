@@ -13,7 +13,12 @@
 [![Macro F1](https://img.shields.io/badge/macro_F1-0.89_(fine--tuned)-brightgreen)](docs/FINE_TUNING.md)
 [![HF Hub](https://img.shields.io/badge/🤗-Model_on_Hub-yellow)](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion)
 [![Crisis Recall](https://img.shields.io/badge/crisis_recall-93%25-brightgreen)](docs/EVALUATION.md)
-- 🚀 **Fine-tuned DistilRoBERTa** on 16K samples, improving baseline from 0.87 → 0.89 F1 ([model on HF](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion))
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-HuggingFace_Space-yellow)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+[![Deployed](https://img.shields.io/badge/deployed-huggingface_spaces-brightgreen)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+[![Live Demo](https://img.shields.io/badge/🚀-Live_Demo-yellow)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+
+🚀 **Fine-tuned DistilRoBERTa** on 16K samples, improving baseline from 0.87 → 0.89 F1 ([model on HF](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion))
+- 🌐 **Deployed to HuggingFace Spaces** — [Live interactive demo](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
 
 **Production-grade multi-agent AI platform for mental health intelligence.** Built with Transformer-based NLP, retrieval-augmented generation, async multi-agent orchestration, explainability, structured monitoring, and full CI/CD.
 
@@ -33,6 +38,22 @@
 - 🐳 **Docker-ready** with multi-service `docker-compose`
 - ✅ **GitHub Actions CI** running tests + lint on every push
 
+---
+
+## 🌐 Live Demo
+
+**Try it now:** [huggingface.co/spaces/YDVJIYA/mental-health-ai-platform](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+
+> ⚡ First visit may take 30-60 seconds if the Space is waking from sleep.
+> Once warm, responses are instant.
+
+Deployed with:
+- 🤗 **HuggingFace Spaces** (free tier, 16GB RAM)
+- 🎯 **UptimeRobot** ping monitor (keeps app warm)
+- 🚀 **Streamlit** single-service architecture
+- 🧠 **Fine-tuned DistilRoBERTa** loaded directly from HF Hub
+
+---
 ---
 
 ## 📊 Benchmark Results
