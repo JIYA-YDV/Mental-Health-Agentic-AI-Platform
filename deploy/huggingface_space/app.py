@@ -1,23 +1,22 @@
 """
-Mental Health Agentic AI Platform — HuggingFace Spaces Deployment
+Mental Health Agentic AI Platform — HuggingFace Spaces Deployment (v1.1)
 
-Single-service Streamlit app combining:
-- Fine-tuned DistilRoBERTa emotion classifier (from HF Hub)
-- Crisis detection agent (keyword + confidence based)
-- RAG pipeline (ChromaDB in-memory)
-- Token-level explainability (lexicon-based)
-
-Optimized for HF Spaces free tier (16GB RAM, 2 CPUs).
+Improvements over v1.0:
+- Layered classification with safety overrides for clinical vocabulary
+- Confidence threshold warnings for ambiguous predictions
+- Keyword-based crisis vocabulary override (protects against false positives
+  like classifying "demotivated" as love)
+- Example input dropdown for better first-time UX
+- Top-N predictions shown when model is uncertain
 """
 import re
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import streamlit as st
-import os
-os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
+
 # ═══════════════════════════════════════════════════════════════════
-# PAGE CONFIG (must be first Streamlit command)
+# PAGE CONFIG
 # ═══════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Mental Health AI Platform",
@@ -31,13 +30,46 @@ st.set_page_config(
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════
 EMOTION_MODEL = "YDVJIYA/distilroberta-base-finetuned-emotion"
+
+# Confidence threshold below which we show a warning + top-N alternatives
+LOW_CONFIDENCE_THRESHOLD = 0.60
+
+# ── High-Priority Sadness Vocabulary (Clinical / Mental Health) ─────
+# These words STRONGLY indicate sadness/distress even if the model gets
+# confused by surrounding positive-sounding structure. If ANY of these
+# appear and the model didn't predict sadness, we override.
+SADNESS_OVERRIDE_KEYWORDS = {
+    # Direct distress signals
+    "hopeless", "worthless", "empty", "numb", "meaningless", "pointless",
+    # Motivation / energy loss  
+    "demotivated", "unmotivated", "exhausted", "drained", "burnt out",
+    "burned out", "no energy", "can't focus",
+    # Depression indicators
+    "depressed", "depression", "suicidal", "self-harm",
+    # Life stagnation
+    "stuck", "trapped", "failing", "failure", "giving up",
+    # Sleep / rest issues (often depression symptoms)
+    "can't sleep", "insomnia", "always tired",
+    # Isolation
+    "lonely", "isolated", "alone",
+}
+
+# ── Fear/Anxiety Override Vocabulary ────────────────────────────────
+FEAR_OVERRIDE_KEYWORDS = {
+    "anxious", "anxiety", "panic", "terrified", "overwhelmed",
+    "can't breathe", "heart racing", "afraid", "scared",
+}
+
+# ── Crisis Vocabulary (Highest Priority — always triggers alert) ────
 CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end my life", "self-harm",
-    "want to die", "hopeless", "no reason to live", "can't go on",
+    "want to die", "no reason to live", "can't go on",
+    "hurt myself", "not worth living",
 ]
+
 CRISIS_CONFIDENCE_THRESHOLD = 0.75
 
-# Lexicon for explainability
+# ── Lexicon for token-level explanation display ─────────────────────
 EMOTION_LEXICON = {
     "sadness": {
         "sad": 1.0, "depressed": 1.0, "lonely": 0.9, "hopeless": 1.0,
@@ -45,11 +77,14 @@ EMOTION_LEXICON = {
         "spin": 0.75, "spinning": 0.75, "dizzy": 0.6, "earning": 0.80,
         "unemployed": 0.90, "broke": 0.85, "stuck": 0.75, "failing": 0.80,
         "cry": 0.9, "crying": 0.9, "tears": 0.85, "numb": 0.75,
+        "demotivated": 0.90, "unmotivated": 0.85, "drained": 0.75,
+        "meaningless": 0.90, "pointless": 0.85, "burnt": 0.75, "burned": 0.75,
     },
     "fear": {
         "afraid": 1.0, "scared": 1.0, "anxious": 1.0, "worried": 0.85,
         "nervous": 0.75, "panic": 1.0, "overwhelm": 0.9, "overwhelmed": 0.9,
         "pressure": 0.75, "uncertain": 0.7, "future": 0.45, "stress": 0.6,
+        "terrified": 1.0, "racing": 0.7, "breathe": 0.6,
     },
     "joy": {
         "happy": 1.0, "joyful": 1.0, "excited": 0.9, "glad": 0.8,
@@ -61,7 +96,7 @@ EMOTION_LEXICON = {
     },
 }
 
-# Wellness Knowledge Base (embedded — no ChromaDB needed for demo)
+# ── Wellness Knowledge Base ─────────────────────────────────────────
 WELLNESS_KB = [
     {
         "emotion": "sadness",
@@ -77,6 +112,11 @@ WELLNESS_KB = [
         "emotion": "sadness",
         "title": "Financial & Career Stress Support",
         "content": "Financial strain can trigger overwhelming sadness. Break income goals into daily micro-steps. Speak to a financial counselor. Remember: self-worth is not measured by salary.",
+    },
+    {
+        "emotion": "sadness",
+        "title": "Motivation & Energy Recovery",
+        "content": "When you feel demotivated or drained: Start with one tiny action (2 minutes). Movement follows action, not the other way around. Small wins compound over time.",
     },
     {
         "emotion": "fear",
@@ -120,16 +160,12 @@ CRISIS_RESOURCES = [
 
 
 # ═══════════════════════════════════════════════════════════════════
-# MODEL LOADING (cached for speed)
+# MODEL LOADING
 # ═══════════════════════════════════════════════════════════════════
 @st.cache_resource(show_spinner="Loading fine-tuned emotion model (first time only)...")
 def load_emotion_classifier():
-    """Load the fine-tuned model from HuggingFace Hub. Cached across sessions."""
     from transformers import pipeline, AutoTokenizer
-    
-    # Use slow tokenizer to avoid version compatibility issues
     tokenizer = AutoTokenizer.from_pretrained(EMOTION_MODEL, use_fast=False)
-    
     classifier = pipeline(
         task="text-classification",
         model=EMOTION_MODEL,
@@ -142,28 +178,97 @@ def load_emotion_classifier():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# AGENT LOGIC
+# CLASSIFICATION WITH SAFETY OVERRIDES
 # ═══════════════════════════════════════════════════════════════════
-def classify_emotion(text: str, classifier) -> Dict[str, Any]:
-    """Run classifier and return structured output."""
-    results = classifier(text)[0]
-    sorted_results = sorted(results, key=lambda x: x["score"], reverse=True)
+def _contains_any(text_lower: str, keywords: set) -> Optional[str]:
+    """Return the first matching keyword, or None."""
+    for kw in keywords:
+        if kw in text_lower:
+            return kw
+    return None
+
+
+def classify_with_safety_overrides(text: str, classifier) -> Dict[str, Any]:
+    """
+    Run model + apply safety overrides for clinical vocabulary.
+    
+    Priority hierarchy:
+    1. Crisis keywords → force sadness + crisis flag
+    2. Sadness clinical vocabulary → override to sadness if model missed
+    3. Fear clinical vocabulary → override to fear if model missed
+    4. Otherwise → use model prediction as-is
+    
+    Also flags low-confidence predictions for UI warning.
+    """
+    text_lower = text.lower()
+    
+    # Get raw model predictions
+    raw_results = classifier(text)[0]
+    sorted_results = sorted(raw_results, key=lambda x: x["score"], reverse=True)
+    top_emotion = sorted_results[0]["label"].lower()
+    top_confidence = sorted_results[0]["score"]
+    
+    # Track override reasoning for transparency
+    override_reason = None
+    override_applied = False
+    
+    # ── Layer 1: Crisis keywords take absolute priority ──
+    crisis_match = _contains_any(text_lower, set(CRISIS_KEYWORDS))
+    if crisis_match:
+        top_emotion = "sadness"
+        override_reason = f"Crisis keyword detected: '{crisis_match}'"
+        override_applied = True
+    
+    # ── Layer 2: Clinical sadness vocabulary override ──
+    elif top_emotion not in ("sadness", "fear"):
+        sadness_match = _contains_any(text_lower, SADNESS_OVERRIDE_KEYWORDS)
+        if sadness_match:
+            top_emotion = "sadness"
+            override_reason = f"Clinical distress vocabulary: '{sadness_match}'"
+            override_applied = True
+    
+    # ── Layer 3: Fear vocabulary override ──
+    if not override_applied and top_emotion not in ("fear", "sadness"):
+        fear_match = _contains_any(text_lower, FEAR_OVERRIDE_KEYWORDS)
+        if fear_match:
+            top_emotion = "fear"
+            override_reason = f"Anxiety vocabulary detected: '{fear_match}'"
+            override_applied = True
+    
+    # If override changed the top emotion, adjust confidence display
+    if override_applied:
+        # Find the overridden emotion's actual model score
+        overridden_score = next(
+            (r["score"] for r in sorted_results if r["label"].lower() == top_emotion),
+            0.5  # fallback if not in top predictions
+        )
+        # Use higher of model score or 0.75 (override signals high certainty)
+        display_confidence = max(overridden_score, 0.75)
+    else:
+        display_confidence = top_confidence
+    
+    is_low_confidence = display_confidence < LOW_CONFIDENCE_THRESHOLD
+    
     return {
-        "emotion": sorted_results[0]["label"],
-        "confidence": sorted_results[0]["score"],
+        "emotion": top_emotion,
+        "confidence": display_confidence,
         "all_predictions": sorted_results,
+        "model_top_prediction": sorted_results[0]["label"].lower(),
+        "model_top_confidence": top_confidence,
+        "override_applied": override_applied,
+        "override_reason": override_reason,
+        "is_low_confidence": is_low_confidence,
     }
 
 
 def assess_crisis(text: str, classification: Dict[str, Any]) -> Dict[str, Any]:
-    """Detect crisis signals via keywords + emotion confidence."""
+    """Detect crisis via keywords + high-risk emotion + confidence."""
     text_lower = text.lower()
     indicators = [kw for kw in CRISIS_KEYWORDS if kw in text_lower]
     
     high_risk_emotion = classification["emotion"] in ("sadness", "fear")
     high_confidence = classification["confidence"] >= CRISIS_CONFIDENCE_THRESHOLD
     
-    # Risk scoring
     keyword_score = min(len(indicators) * 0.4, 1.0)
     emotion_score = 0.5 if (high_risk_emotion and high_confidence) else 0.0
     risk_score = min(keyword_score + emotion_score, 1.0)
@@ -188,22 +293,16 @@ def assess_crisis(text: str, classification: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def retrieve_recommendations(emotion: str) -> List[Dict[str, str]]:
-    """Get recommendations for the detected emotion from embedded KB."""
     emotion_lower = emotion.lower()
     matches = [item for item in WELLNESS_KB if item["emotion"] == emotion_lower]
-    
-    # Fallback: return sadness recommendations for unknown emotions
     if not matches:
         matches = [item for item in WELLNESS_KB if item["emotion"] == "sadness"][:2]
-    
     return matches[:3]
 
 
 def explain_prediction(text: str, emotion: str) -> List[Dict[str, Any]]:
-    """Lexicon-based token attribution."""
     emotion_lower = emotion.lower()
     lexicon = EMOTION_LEXICON.get(emotion_lower, EMOTION_LEXICON.get("sadness", {}))
-    
     text_lower = text.lower()
     matches = []
     for word, weight in lexicon.items():
@@ -213,7 +312,6 @@ def explain_prediction(text: str, emotion: str) -> List[Dict[str, Any]]:
                 "weight": round(weight, 3),
                 "influence": "positive" if weight > 0 else "negative",
             })
-    
     matches.sort(key=lambda x: abs(x["weight"]), reverse=True)
     return matches[:8]
 
@@ -222,7 +320,6 @@ def explain_prediction(text: str, emotion: str) -> List[Dict[str, Any]]:
 # UI COMPONENTS
 # ═══════════════════════════════════════════════════════════════════
 def sidebar():
-    """Render sidebar with system info + disclaimer."""
     with st.sidebar:
         st.title("⚙️ System")
         st.success("✅ Model: Fine-tuned DistilRoBERTa")
@@ -232,6 +329,7 @@ def sidebar():
         st.subheader("📊 Analysis Options")
         show_explanations = st.toggle("Show token explanations", value=True)
         show_all_emotions = st.toggle("Show all emotion scores", value=True)
+        show_overrides = st.toggle("Show safety override info", value=True)
         st.divider()
         
         st.warning(
@@ -246,11 +344,10 @@ def sidebar():
         st.markdown("[Fine-Tuned Model](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion)")
         st.markdown("[Evaluation Report](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform/blob/main/docs/EVALUATION.md)")
         
-        return show_explanations, show_all_emotions
+        return show_explanations, show_all_emotions, show_overrides
 
 
-def render_classification(result: Dict[str, Any]):
-    """Show the emotion classification result."""
+def render_classification(result: Dict[str, Any], show_overrides: bool):
     emotion = result["emotion"]
     confidence = result["confidence"]
     
@@ -266,11 +363,28 @@ def render_classification(result: Dict[str, Any]):
     with col2:
         st.metric("Processing", f"{result.get('latency_ms', 0):.0f} ms")
     with col3:
-        st.metric("Model", "Fine-tuned v1.0")
+        st.metric("Model", "Fine-tuned v1.1")
+    
+    # Show override transparency
+    if show_overrides and result.get("override_applied"):
+        st.info(
+            f"🛡️ **Safety Override Applied:** {result['override_reason']}\n\n"
+            f"Model's raw top prediction was `{result['model_top_prediction']}` "
+            f"({result['model_top_confidence']:.1%}), but distress-related "
+            f"vocabulary triggered a `{emotion}` override. This layered approach "
+            f"protects against misclassifications in mental health contexts."
+        )
+    
+    # Warn on low confidence
+    if result.get("is_low_confidence") and not result.get("override_applied"):
+        st.warning(
+            f"⚠️ **Low confidence prediction** ({confidence:.1%}). "
+            f"Consider trying more specific language, or view all emotion "
+            f"scores below to see alternatives."
+        )
 
 
 def render_all_predictions(predictions: List[Dict[str, Any]]):
-    """Bar chart of all emotion probabilities."""
     st.subheader("📊 All Emotion Scores")
     for pred in predictions:
         col1, col2 = st.columns([3, 1])
@@ -281,7 +395,6 @@ def render_all_predictions(predictions: List[Dict[str, Any]]):
 
 
 def render_crisis_assessment(crisis: Dict[str, Any]):
-    """Crisis alert if detected."""
     if crisis["is_crisis"]:
         st.error(
             f"🚨 **Elevated Risk Detected** (Risk Score: {crisis['risk_score']:.0%})\n\n"
@@ -298,7 +411,6 @@ def render_crisis_assessment(crisis: Dict[str, Any]):
 
 
 def render_recommendations(recs: List[Dict[str, str]]):
-    """Wellness recommendations."""
     st.subheader("💡 Personalized Wellness Recommendations")
     for rec in recs:
         with st.expander(f"📖 **{rec['title']}**"):
@@ -306,14 +418,11 @@ def render_recommendations(recs: List[Dict[str, str]]):
 
 
 def render_explanations(explanations: List[Dict[str, Any]]):
-    """Token-level attribution display."""
     if not explanations:
         st.info("No strongly influential tokens detected.")
         return
-    
     st.subheader("🔮 Token Influence Analysis")
     st.caption("Which words most influenced the prediction:")
-    
     for exp in explanations:
         col1, col2 = st.columns([3, 1])
         with col1:
@@ -327,48 +436,42 @@ def render_explanations(explanations: List[Dict[str, Any]]):
 # MAIN APP
 # ═══════════════════════════════════════════════════════════════════
 def main():
-    # Header
     st.title("🧠 Mental Health Agentic AI Platform")
     st.markdown(
         "*AI-powered emotional intelligence powered by fine-tuned DistilRoBERTa "
-        "(macro F1 = 0.89) with multi-agent orchestration.*"
+        "(macro F1 = 0.89) + layered safety overrides for clinical vocabulary.*"
     )
     st.divider()
     
-    # Sidebar
-    show_explanations, show_all_emotions = sidebar()
-    
-    # Load model (cached)
+    show_explanations, show_all_emotions, show_overrides = sidebar()
     classifier = load_emotion_classifier()
     
-    # Input section
     st.subheader("💬 Share what's on your mind")
-
+    
     # Preset examples for quick demo
     example_options = {
-        "— Select an example (or type your own) —": "",
+        "— Type your own message —": "",
         "🔴 Clear sadness signal": "I feel hopeless and exhausted lately, nothing seems to bring me joy anymore.",
         "😰 Anxiety signal": "I can't stop worrying about my exam tomorrow, my heart is racing.",
+        "🟡 Clinical distress (edge case)": "I've been feeling really wired and demotivated lately with work and money problems.",
         "😊 Positive emotion": "Just got promoted at work! I feel so excited and grateful.",
         "😠 Anger": "I'm so frustrated with my roommate, they never clean up after themselves.",
-        "🤔 Mixed signal (edge case)": "I've been feeling really wired and demotivated lately with work problems.",
         "🚨 Crisis signal (triggers alert)": "I feel completely alone and don't know if I can keep going anymore.",
     }
-
+    
     selected_example = st.selectbox(
-        "Try an example:",
+        "Try an example (or type your own below):",
         options=list(example_options.keys()),
-        index=1,  # default to sadness example
+        index=1,
     )
-
+    
     default_text = example_options[selected_example]
-
     text_input = st.text_area(
         "Your thoughts or feelings:",
         value=default_text,
         height=120,
         max_chars=5000,
-        placeholder="Type here or select an example above...",
+        placeholder="Type here...",
     )
     
     col1, col2 = st.columns([1, 3])
@@ -380,15 +483,12 @@ def main():
             st.warning("Please enter some text to analyze.")
             return
         
-        # Run pipeline
         start = time.time()
-        
         with st.spinner("Analyzing..."):
-            classification = classify_emotion(text_input, classifier)
+            classification = classify_with_safety_overrides(text_input, classifier)
             classification["latency_ms"] = (time.time() - start) * 1000
             crisis = assess_crisis(text_input, classification)
             recommendations = retrieve_recommendations(classification["emotion"])
-            
             explanations = []
             if show_explanations:
                 explanations = explain_prediction(text_input, classification["emotion"])
@@ -396,32 +496,35 @@ def main():
         st.success("✅ Analysis Complete")
         st.divider()
         
-        # Layout: Classification + Crisis side by side
         col_left, col_right = st.columns([2, 1])
         with col_left:
-            render_classification(classification)
+            render_classification(classification, show_overrides)
         with col_right:
             render_crisis_assessment(crisis)
         
         st.divider()
         
-        # All emotion scores (if enabled)
         if show_all_emotions:
             render_all_predictions(classification["all_predictions"])
             st.divider()
         
-        # Recommendations
         render_recommendations(recommendations)
         st.divider()
         
-        # Explanations (if enabled)
         if show_explanations:
             render_explanations(explanations)
         
-        # Raw data for developers
         with st.expander("🛠️ Developer View — Raw Response"):
             st.json({
-                "classification": classification,
+                "classification": {
+                    "final_emotion": classification["emotion"],
+                    "final_confidence": classification["confidence"],
+                    "model_raw_prediction": classification["model_top_prediction"],
+                    "model_raw_confidence": classification["model_top_confidence"],
+                    "override_applied": classification["override_applied"],
+                    "override_reason": classification["override_reason"],
+                    "low_confidence_warning": classification["is_low_confidence"],
+                },
                 "crisis_assessment": crisis,
                 "recommendations_count": len(recommendations),
                 "explanations_count": len(explanations),
