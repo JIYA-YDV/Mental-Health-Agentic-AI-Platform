@@ -11,6 +11,10 @@ Improvements over v1.0:
 """
 import re
 import time
+import streamlit as st
+import requests
+import os
+import sys
 from typing import Any, Dict, List, Optional
 
 import streamlit as st
@@ -25,6 +29,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Add streaming import
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
 
 # ═══════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -530,6 +540,141 @@ def main():
                 "explanations_count": len(explanations),
             })
 
+def stream_llm_response(user_text, emotion, confidence, crisis_detected, safety_override):
+    """Stream empathetic response using Groq."""
+    
+    api_key = os.getenv("GROQ_API_KEY", "")
+    
+    if not api_key or not GROQ_AVAILABLE:
+        st.info("💡 LLM streaming not configured. Add GROQ_API_KEY to enable.")
+        return
+    
+    # Crisis: show static message, don't use LLM
+    if crisis_detected:
+        st.error("""
+        🆘 **Immediate Support Available:**
+        - **988 Suicide & Crisis Lifeline** — Call or text 988
+        - **Crisis Text Line** — Text HOME to 741741  
+        - **Emergency** — Call 911
+        
+        You are not alone. Please reach out right now. 💙
+        """)
+        return
+    
+    system_prompt = """You are a compassionate mental health support assistant.
+    Provide warm, brief (3-4 sentences), empathetic responses.
+    Never diagnose. Never replace professional help. Always encourage support-seeking.
+    If crisis keywords appear, redirect to crisis resources only."""
+    
+    user_prompt = f"""
+    The user shared: "{user_text}"
+    Detected emotion: {emotion} (confidence: {confidence:.0%})
+    {"Safety system flagged this input." if safety_override else ""}
+    
+    Respond with genuine empathy and one gentle, practical suggestion.
+    Start directly with acknowledgment. Keep it warm and human.
+    """
+    
+    try:
+        client = Groq(api_key=api_key)
+        
+        # Create streaming container in Streamlit
+        with st.chat_message("assistant", avatar="💙"):
+            # st.write_stream() handles streaming natively in Streamlit!
+            
+            def generate():
+                stream = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=200,
+                    stream=True
+                )
+                for chunk in stream:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        yield content
+            
+            st.write_stream(generate())
+            
+    except Exception as e:
+        st.warning(f"LLM response unavailable: {str(e)}")
+        st.info("The emotion analysis above is still accurate and reliable.")
+
+
+# ============================================================
+# UPDATED MAIN UI FUNCTION
+# ============================================================
+
+def main():
+    st.set_page_config(
+        page_title="Mental Health AI Platform",
+        page_icon="💙",
+        layout="centered"
+    )
+    
+    st.title("💙 Mental Health AI Platform")
+    st.caption("Emotion analysis with empathetic AI support")
+    
+    # --- Example inputs dropdown ---
+    examples = [
+        "Select an example or type your own...",
+        "I feel so hopeless and empty lately",
+        "I'm really anxious about my job interview tomorrow",
+        "Today was amazing! I got the promotion I worked for!",
+        "I've been feeling overwhelmed and can't sleep",
+        "I'm so angry at how things turned out",
+    ]
+    
+    selected = st.selectbox("Try an example:", examples)
+    
+    user_input = st.text_area(
+        "Or type your own:",
+        value=selected if selected != examples[0] else "",
+        placeholder="How are you feeling today?",
+        max_chars=512,
+        height=100
+    )
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
+    
+    if analyze_clicked and user_input.strip():
+        
+        with st.spinner("Analyzing..."):
+            # Call your FastAPI backend (or run inline for HF Spaces)
+            result = call_backend(user_input)  # your existing function
+        
+        if result:
+            # --- EXISTING RESULTS DISPLAY (your current code) ---
+            display_results(result)  # your existing function
+            
+            # --- NEW: LLM STREAMING RESPONSE ---
+            st.divider()
+            st.subheader("💙 AI Support Response")
+            st.caption("Personalized empathetic response from Llama 3")
+            
+            stream_llm_response(
+                user_text=user_input,
+                emotion=result.get("emotion", "unknown"),
+                confidence=result.get("confidence", 0.0),
+                crisis_detected=result.get("crisis_detected", False),
+                safety_override=result.get("safety_override_applied", False)
+            )
+            
+            # Always show this disclaimer
+            st.caption(
+                "⚠️ This AI provides supportive responses only. "
+                "It is not a substitute for professional mental health care. "
+                "If you're struggling, please speak to a qualified professional."
+            )
+    
+    elif analyze_clicked:
+        st.warning("Please enter some text to analyze.")
 
 if __name__ == "__main__":
     main()
