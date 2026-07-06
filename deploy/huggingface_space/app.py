@@ -548,108 +548,173 @@ def render_results(result: dict, settings: dict):
 # MOCK BACKEND (replace with your real API call)
 # ============================================================
 
+# ============================================================
+# INFERENCE - Fixed tokenizer loading
+# ============================================================
+
 def analyze_text(text: str) -> dict:
     """
-    Replace this with your actual FastAPI backend call.
-    For HuggingFace Spaces (no separate backend), use the model directly.
+    Run emotion classification with safety overrides.
+    Uses the fine-tuned model with proper tokenizer loading (use_fast=False fix).
     """
+    from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
     
-    # ==========================================
-    # OPTION A: If you have a running FastAPI backend
-    # ==========================================
-    # try:
-    #     response = requests.post(
-    #         "http://localhost:8000/classify",
-    #         json={"text": text},
-    #         timeout=30
-    #     )
-    #     return response.json()
-    # except Exception as e:
-    #     st.error(f"Backend error: {e}")
-    #     return None
-    
-    # ==========================================
-    # OPTION B: Inline inference for HF Spaces
-    # (Use this if HF Space runs only Streamlit)
-    # ==========================================
-    from transformers import pipeline
-    
+    # Load model + tokenizer only once (cached in session state)
     if "classifier" not in st.session_state:
-        with st.spinner("Loading model (first time only)..."):
+        with st.spinner("Loading model (first time only, ~30 seconds)..."):
+            model_name = "YDVJIYA/distilroberta-base-finetuned-emotion"
+            
+            # CRITICAL FIX: Load tokenizer explicitly with use_fast=False
+            # This avoids the tokenizer.json format incompatibility
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                use_fast=False  # ← THE FIX from Phase 5
+            )
+            
+            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            
+            # Build pipeline with the pre-loaded components
             st.session_state.classifier = pipeline(
                 "text-classification",
-                model="YDVJIYA/distilroberta-base-finetuned-emotion",
+                model=model,
+                tokenizer=tokenizer,
                 top_k=None,
-                device=-1
+                device=-1  # CPU
             )
     
+    # Run inference
     start = time.time()
     results = st.session_state.classifier(text)[0]
     elapsed_ms = int((time.time() - start) * 1000)
     
-    # Sort by score
+    # Sort by score descending
     results = sorted(results, key=lambda x: x["score"], reverse=True)
     top = results[0]
     
-    # Apply safety overrides
+    # ============================================================
+    # SAFETY OVERRIDE SYSTEM (layered defense)
+    # ============================================================
     text_lower = text.lower()
-    crisis_keywords = ["suicide", "suicidal", "kill myself", "end my life", 
-                       "don't want to be here", "want to die", "no way out"]
-    sadness_keywords = ["hopeless", "worthless", "meaningless", "empty inside",
-                        "exhausted", "nothing matters"]
+    
+    crisis_keywords = [
+        "suicide", "suicidal", "kill myself", "end my life",
+        "don't want to be here", "want to die", "no way out",
+        "better off dead", "no reason to live", "can't go on"
+    ]
+    
+    sadness_keywords = [
+        "hopeless", "worthless", "meaningless", "empty inside",
+        "exhausted", "nothing matters", "pointless", "numb",
+        "can't feel anything", "helpless", "useless"
+    ]
+    
+    fear_keywords = [
+        "terrified", "panic attack", "can't breathe",
+        "overwhelming anxiety", "paralyzed with fear"
+    ]
     
     crisis_detected = any(kw in text_lower for kw in crisis_keywords)
     safety_override = False
     override_reason = ""
     original_emotion = top["label"]
-    
     predicted_emotion = top["label"].lower()
     
+    # Layer 1: Crisis (highest priority)
     if crisis_detected:
         predicted_emotion = "sadness"
         safety_override = True
-        override_reason = "Crisis vocabulary detected — routed to safety flow"
+        override_reason = "Crisis vocabulary detected — activated safety flow"
+    
+    # Layer 2: Sadness override (depression vocabulary misclassified as positive)
     elif any(kw in text_lower for kw in sadness_keywords) and predicted_emotion in ["joy", "love", "surprise"]:
         predicted_emotion = "sadness"
         safety_override = True
-        override_reason = f"Depression vocabulary overrides {original_emotion} prediction"
+        override_reason = f"Depression vocabulary overrides '{original_emotion}' prediction"
     
-    # Build token explanations (simple lexicon-based)
+    # Layer 3: Fear override (anxiety vocabulary misclassified as positive)
+    elif any(kw in text_lower for kw in fear_keywords) and predicted_emotion in ["joy", "love", "surprise"]:
+        predicted_emotion = "fear"
+        safety_override = True
+        override_reason = f"Anxiety vocabulary overrides '{original_emotion}' prediction"
+    
+    # ============================================================
+    # TOKEN EXPLANATIONS (lexicon-based)
+    # ============================================================
     words = text.split()
     explanations = []
-    negative_words = {"hopeless", "sad", "empty", "exhausted", "worthless", 
-                      "angry", "scared", "anxious", "terrible", "awful"}
-    positive_words = {"happy", "joy", "grateful", "love", "amazing", 
-                      "wonderful", "excited", "great"}
     
-    for word in words[:20]:
-        clean = word.lower().strip(".,!?;:")
-        if clean in negative_words:
-            explanations.append({"word": clean, "weight": -0.9, "influence": "negative"})
-        elif clean in positive_words:
-            explanations.append({"word": clean, "weight": 0.9, "influence": "positive"})
+    negative_lexicon = {
+        "hopeless": -1.0, "worthless": -0.95, "meaningless": -0.9,
+        "empty": -0.85, "exhausted": -0.8, "sad": -0.75,
+        "angry": -0.7, "scared": -0.75, "anxious": -0.7,
+        "terrible": -0.8, "awful": -0.75, "depressed": -0.9,
+        "lost": -0.7, "broken": -0.8, "alone": -0.7,
+        "crying": -0.75, "hurt": -0.7, "suicide": -1.0
+    }
     
-    # Build recommendations based on emotion
+    positive_lexicon = {
+        "happy": 0.9, "joy": 0.95, "grateful": 0.85,
+        "love": 0.9, "amazing": 0.85, "wonderful": 0.85,
+        "excited": 0.8, "great": 0.75, "blessed": 0.8,
+        "proud": 0.8, "thankful": 0.85, "confident": 0.75
+    }
+    
+    seen = set()
+    for word in words[:30]:
+        clean = word.lower().strip(".,!?;:'\"")
+        if clean in seen:
+            continue
+        seen.add(clean)
+        
+        if clean in negative_lexicon:
+            explanations.append({
+                "word": clean,
+                "weight": negative_lexicon[clean],
+                "influence": "negative"
+            })
+        elif clean in positive_lexicon:
+            explanations.append({
+                "word": clean,
+                "weight": positive_lexicon[clean],
+                "influence": "positive"
+            })
+    
+    # ============================================================
+    # RECOMMENDATIONS (emotion-specific)
+    # ============================================================
     recommendations_map = {
         "sadness": [
             "5-4-3-2-1 Grounding Exercise",
             "Cognitive Reframing for Negative Thoughts",
-            "Reach out to a trusted friend today"
+            "Reach out to a trusted friend or family member",
+            "Consider speaking with a mental health professional"
         ],
         "fear": [
             "Box Breathing (4-4-4-4 pattern)",
-            "Progressive Muscle Relaxation",
-            "Anxiety journaling technique"
+            "Progressive Muscle Relaxation technique",
+            "Anxiety journaling — write down your worries",
+            "Grounding: name 5 things you can see"
         ],
         "anger": [
             "Take 10 deep breaths before responding",
-            "Physical release: walk or exercise",
-            "Anger management resources"
+            "Physical release: brief walk or exercise",
+            "Journal what triggered the anger",
+            "Anger management coping strategies"
         ],
         "joy": [
-            "Gratitude journaling practice",
-            "Share your joy with someone",
-            "Reflect on what led to this moment"
+            "Gratitude journaling — capture this feeling",
+            "Share your joy with someone you love",
+            "Reflect on what led to this positive moment"
+        ],
+        "love": [
+            "Express appreciation to those you care about",
+            "Practice self-compassion daily",
+            "Nurture your important relationships"
+        ],
+        "surprise": [
+            "Take time to process unexpected events",
+            "Reflect on your emotional response",
+            "Talk through the surprise with someone"
         ],
     }
     
