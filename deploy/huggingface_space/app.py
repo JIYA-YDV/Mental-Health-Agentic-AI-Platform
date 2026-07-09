@@ -14,14 +14,36 @@ from typing import Optional
 import streamlit as st
 
 # Load .env file for local development
+# NEW (works locally AND on HF Spaces):
 try:
     from dotenv import load_dotenv
     from pathlib import Path
-    env_path = Path(__file__).resolve().parents[2] / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
+    
+    # Try multiple possible .env locations
+    current_file = Path(__file__).resolve()
+    possible_env_paths = [
+        current_file.parent / ".env",              # Same directory as app.py
+        current_file.parent.parent / ".env",       # 1 level up
+    ]
+    
+    # Add parents[2] only if it exists (won't on HF Spaces)
+    try:
+        possible_env_paths.append(current_file.parents[2] / ".env")
+    except IndexError:
+        pass  # HF Spaces doesn't have this depth
+    
+    # Load first .env found
+    for env_path in possible_env_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            break
+    
+    # HF Spaces: env vars are already set via secrets, no .env needed
+    
 except ImportError:
-    pass
+    pass  # dotenv not installed (unlikely, but safe)
+except Exception:
+    pass  # Any other issue — HF Spaces uses secrets, not .env
 
 # Optional Groq import (graceful degradation)
 try:
