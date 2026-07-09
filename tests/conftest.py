@@ -14,6 +14,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import numpy as np
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Mock data factories
@@ -59,16 +61,37 @@ def _fake_crisis_assessment(is_crisis: bool = False) -> Dict[str, Any]:
 # ──────────────────────────────────────────────────────────────────────
 
 @pytest.fixture
+@pytest.fixture(autouse=True)
+def mock_env(monkeypatch):
+    """Set required env vars for all tests."""
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_dummy_key")
+    monkeypatch.setenv("EMOTION_MODEL", "test-model")
+
+
+@pytest.fixture
 def mock_classifier():
-    """Mock EmotionClassifier — returns sadness prediction by default."""
+    """Mock DistilRoBERTa classifier."""
     mock = MagicMock()
-    mock.is_loaded = True
-    mock.predict.return_value = {
+    mock.classify.return_value = {
         "emotion": "sadness",
         "confidence": 0.85,
-        "all_predictions": _fake_predictions(),
+        "all_emotions": [
+            {"label": "sadness", "score": 0.85},
+            {"label": "joy", "score": 0.05},
+            {"label": "anger", "score": 0.03},
+            {"label": "fear", "score": 0.03},
+            {"label": "love", "score": 0.02},
+            {"label": "surprise", "score": 0.02},
+        ]
     }
-    mock.load.return_value = None
+    return mock
+
+
+@pytest.fixture
+def mock_embedder():
+    """Mock sentence transformer."""
+    mock = MagicMock()
+    mock.encode.return_value = np.random.rand(384).astype(np.float32)
     return mock
 
 
