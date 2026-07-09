@@ -1,185 +1,227 @@
-# backend/models/llm_responder.py
-
+# -*- coding: utf-8 -*-
 """
 LLM Response Generator using Groq API.
-Generates empathetic, streaming responses based on emotion analysis.
+Generates empathetic streaming responses based on emotion analysis.
 """
 
 import os
+import sys
+from pathlib import Path
 from typing import Generator, Optional
+
+# Add project root to sys.path for direct script execution
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from groq import Groq
-from backend.config.settings import settings
 
-# Safety: topics we NEVER comment on beyond crisis resources
-CRISIS_REDIRECT_MESSAGE = """
-I can see you might be going through an extremely difficult time. 
-Please know that immediate support is available:
+try:
+    from backend.config.settings import settings
+    SETTINGS_AVAILABLE = True
+except ImportError:
+    SETTINGS_AVAILABLE = False
+    settings = None
 
-🆘 **Crisis Helpline: 988** (call or text, 24/7)
-🆘 **Crisis Text Line: Text HOME to 741741**
-🆘 **Emergency Services: 911**
 
-You don't have to face this alone. Please reach out to these 
-trained professionals right now. 💙
-"""
+# ============================================================
+# CONSTANTS - Plain ASCII, no emojis in code
+# ============================================================
 
-SYSTEM_PROMPT = """
-You are a compassionate mental health support assistant. Your role is to:
+CRISIS_REDIRECT_MESSAGE = (
+    "I can see you might be going through an extremely difficult time. "
+    "Please know that immediate support is available:\n\n"
+    "**Crisis Helpline: 988** (call or text, 24/7)\n"
+    "**Crisis Text Line: Text HOME to 741741**\n"
+    "**Emergency Services: 911**\n\n"
+    "You don't have to face this alone. Please reach out to these "
+    "trained professionals right now."
+)
 
-1. Acknowledge the user's emotions with genuine empathy
-2. Validate their feelings without judgment  
-3. Offer ONE practical coping strategy relevant to their emotion
-4. Encourage professional help when appropriate
-5. Keep responses warm, human, and concise (3-4 sentences max)
-
-CRITICAL RULES:
-- NEVER provide medical diagnoses
-- NEVER claim to replace professional therapy
-- NEVER dismiss or minimize feelings
-- If crisis keywords detected: STOP and redirect to crisis resources ONLY
-- Always end with encouragement or a gentle question
-
-Tone: Warm, calm, non-clinical, like a caring friend who understands mental health.
-"""
+SYSTEM_PROMPT = (
+    "You are a compassionate mental health support assistant. Your role is to:\n\n"
+    "1. Acknowledge the user's emotions with genuine empathy\n"
+    "2. Validate their feelings without judgment\n"
+    "3. Offer ONE practical coping strategy relevant to their emotion\n"
+    "4. Encourage professional help when appropriate\n"
+    "5. Keep responses warm, human, and concise (3-4 sentences max)\n\n"
+    "CRITICAL RULES:\n"
+    "- NEVER provide medical diagnoses\n"
+    "- NEVER claim to replace professional therapy\n"
+    "- NEVER dismiss or minimize feelings\n"
+    "- If crisis keywords detected: STOP and redirect to crisis resources ONLY\n"
+    "- Always end with encouragement or a gentle question\n\n"
+    "Tone: Warm, calm, non-clinical, like a caring friend who understands mental health."
+)
 
 
 class LLMResponder:
     """Generates empathetic streaming responses using Groq's LLM API."""
-    
-    def __init__(self):
-        api_key = os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None)
-        
-        if not api_key:
+
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        # Priority: passed arg > env var > settings > error
+        self.api_key = (
+            api_key
+            or os.getenv("GROQ_API_KEY")
+            or (settings.GROQ_API_KEY if SETTINGS_AVAILABLE else None)
+        )
+
+        self.model = (
+            model
+            or os.getenv("GROQ_MODEL")
+            or (settings.GROQ_MODEL if SETTINGS_AVAILABLE else "llama-3.1-8b-instant")
+        )
+
+        if not self.api_key:
             raise ValueError(
                 "GROQ_API_KEY not found. "
-                "Get a free key at https://console.groq.com "
-                "and add it to your .env file."
+                "Get a free key at https://console.groq.com and add "
+                "GROQ_API_KEY=your_key to the .env file."
             )
-        
-        self.client = Groq(api_key=api_key)
-        self.model = "llama3-8b-8192"  # Fast, free, good quality
-    
+
+        self.client = Groq(api_key=self.api_key)
+
     def build_prompt(
-        self, 
-        user_text: str, 
+        self,
+        user_text: str,
         emotion: str,
         confidence: float,
-        crisis_detected: bool,
-        safety_override_applied: bool
-    ) -> str:
-        """
-        Build a context-aware prompt using analysis results.
-        The LLM gets richer context than just the raw text.
-        """
-        
-        # If crisis detected — don't generate creative response
+        crisis_detected: bool = False,
+        safety_override_applied: bool = False,
+    ) -> Optional[str]:
+        """Build a context-aware prompt for the LLM."""
         if crisis_detected:
-            return None  # Signal to use static crisis message
-        
-        prompt = f"""
-The user wrote: "{user_text}"
+            return None
 
-Our emotion analysis detected: {emotion} (confidence: {confidence:.0%})
-{"Note: Safety system flagged this as high-risk content." if safety_override_applied else ""}
+        override_note = ""
+        if safety_override_applied:
+            override_note = "Note: Our safety system flagged this input as potentially high-risk."
 
-Please provide a compassionate, brief response that:
-1. Acknowledges their {emotion}
-2. Validates what they're feeling
-3. Offers one gentle, practical suggestion
-4. Feels human and warm, not clinical
-
-Keep it to 3-4 sentences. Start directly with empathy, not with "I understand that..."
-"""
+        prompt = (
+            f'The user shared: "{user_text}"\n\n'
+            f"Our emotion analysis detected: {emotion} "
+            f"(confidence: {confidence:.0%})\n"
+            f"{override_note}\n\n"
+            f"Please respond with warmth and empathy. Acknowledge their {emotion}, "
+            f"validate what they're feeling, and offer one gentle, practical suggestion. "
+            f'Keep it to 3-4 sentences. Start directly with empathy - no "I understand that..."'
+        )
         return prompt
-    
+
     def stream_response(
         self,
         user_text: str,
         emotion: str,
         confidence: float,
         crisis_detected: bool = False,
-        safety_override_applied: bool = False
+        safety_override_applied: bool = False,
     ) -> Generator[str, None, None]:
-        """
-        Stream an empathetic LLM response word by word.
-        
-        Yields: individual text chunks as they arrive from Groq
-        
-        Usage:
-            for chunk in responder.stream_response(...):
-                print(chunk, end="", flush=True)
-        """
-        
-        # Crisis override — never generate AI response for crisis
+        """Stream an empathetic LLM response chunk by chunk."""
+
+        # Crisis override - never call LLM
         if crisis_detected:
             yield CRISIS_REDIRECT_MESSAGE
             return
-        
+
         prompt = self.build_prompt(
-            user_text, emotion, confidence, 
-            crisis_detected, safety_override_applied
+            user_text, emotion, confidence,
+            crisis_detected, safety_override_applied,
         )
-        
+
         try:
-            # Groq streaming API call
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
-                temperature=0.7,       # Some creativity, not too random
-                max_tokens=200,        # Keep responses concise
-                stream=True            # ← THE KEY: enables streaming
+                temperature=0.7,
+                max_tokens=200,
+                stream=True,
             )
-            
-            # Yield each chunk as it arrives
+
             for chunk in stream:
-                # Each chunk has delta content (the new text piece)
                 content = chunk.choices[0].delta.content
                 if content is not None:
                     yield content
-                    
+
         except Exception as e:
-            # Graceful fallback — never crash the UI
-            yield f"\n\nI'm here to support you. "
-            yield f"What you're feeling — {emotion} — is valid and real. "
+            # Graceful fallback - never crash the UI
+            yield f"\n\nI hear you. What you're feeling - {emotion} - is valid. "
             yield "Please consider reaching out to a mental health professional "
-            yield "who can provide personalized support. 💙"
-    
+            yield "for personalized support."
+            print(f"[LLM Error] {e}", file=sys.stderr)
+
     def get_full_response(
         self,
         user_text: str,
-        emotion: str, 
+        emotion: str,
         confidence: float,
         crisis_detected: bool = False,
-        safety_override_applied: bool = False
+        safety_override_applied: bool = False,
     ) -> str:
-        """Non-streaming version — returns complete response at once."""
-        
+        """Non-streaming version - returns complete response at once."""
         if crisis_detected:
             return CRISIS_REDIRECT_MESSAGE
-        
+
         chunks = list(self.stream_response(
             user_text, emotion, confidence,
-            crisis_detected, safety_override_applied
+            crisis_detected, safety_override_applied,
         ))
         return "".join(chunks)
 
 
-# Test it standalone:
+# ============================================================
+# STANDALONE TEST
+# ============================================================
+
 if __name__ == "__main__":
+    print("=" * 60)
+    print("Testing LLM Responder")
+    print("=" * 60)
+
+    api_key = os.getenv("GROQ_API_KEY", "")
+    if not api_key and SETTINGS_AVAILABLE:
+        api_key = settings.GROQ_API_KEY
+
+    if not api_key:
+        print("\nGROQ_API_KEY not found!")
+        print("\nTo fix:")
+        print("  1. Get free key at: https://console.groq.com")
+        print("  2. Add to .env file: GROQ_API_KEY=gsk_your_key_here")
+        print("  3. Or set env var: $env:GROQ_API_KEY='gsk_your_key'")
+        sys.exit(1)
+
+    print(f"\n[OK] API key found (length: {len(api_key)})")
+    print(f"[OK] Model: llama3-8b-8192")
+
+    # Test 1: Normal sad input
+    print("\n" + "=" * 60)
+    print("Test 1: Sadness input (should stream response)")
+    print("=" * 60)
+
     responder = LLMResponder()
-    
-    print("Testing streaming response...\n")
-    print("Response: ", end="")
-    
+
+    print("\nStreaming response:\n")
     for chunk in responder.stream_response(
         user_text="I've been feeling really sad and empty lately",
         emotion="sadness",
         confidence=0.85,
-        crisis_detected=False
+        crisis_detected=False,
     ):
         print(chunk, end="", flush=True)
-    
-    print("\n\nDone!")
+
+    print("\n\n" + "=" * 60)
+    print("Test 2: Crisis input (should show static message)")
+    print("=" * 60)
+
+    print("\nStreaming response:\n")
+    for chunk in responder.stream_response(
+        user_text="I don't want to be here anymore",
+        emotion="sadness",
+        confidence=0.9,
+        crisis_detected=True,
+    ):
+        print(chunk, end="", flush=True)
+
+    print("\n\n[OK] All tests complete!")
