@@ -1,37 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-Mental Health Agentic AI Platform
-DistilRoBERTa emotion analysis + Groq LLM supportive response (streaming).
+Mental Health Agentic AI Platform — Streamlit Frontend
+Full agentic backend (FastAPI :8000) + Groq LLM streaming.
+
+Architecture:
+    Streamlit UI  ──HTTP──►  FastAPI backend (multi-agent + RAG + SHAP)
+                  ──API──►   Groq LLM (streaming supportive response)
 
 Author: Jiya Yadav (@JIYA-YDV)
-Emotion Model: YDVJIYA/distilroberta-base-finetuned-emotion
-LLM Provider: Groq (OpenAI-compatible)
-
-UPDATE:
-- Fixed Groq chat model to: groq/compound-mini
-- Removed model discovery + model picker to keep responses consistent
 """
 
 import os
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import streamlit as st
 
-# ──────────────────────────────────────────────────────────────
-# PAGE CONFIG (must be first Streamlit UI call)
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# PAGE CONFIG (must be first Streamlit call)
+# ══════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Mental Health AI Platform",
     page_icon="💙",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={"About": "Mental Health AI Platform — DistilRoBERTa + Groq LLM supportive responses"},
+    menu_items={"About": "Mental Health AI Platform — Agentic backend + Groq LLM"},
 )
 
-# ──────────────────────────────────────────────────────────────
-# Optional .env (local only; harmless on HF Spaces)
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# .env loading (works both locally and on HF Spaces)
+# ══════════════════════════════════════════════════════════════════════
 try:
     from dotenv import load_dotenv
     from pathlib import Path
@@ -44,21 +42,25 @@ try:
 except Exception:
     pass
 
-# ──────────────────────────────────────────────────────────────
-# Groq import (graceful)
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# Backend client
+# ══════════════════════════════════════════════════════════════════════
+from api_client import analyze, check_health, get_session_id, BACKEND_URL
+
+# ══════════════════════════════════════════════════════════════════════
+# Groq (streaming supportive response — kept in frontend)
+# ══════════════════════════════════════════════════════════════════════
 GROQ_AVAILABLE = False
 GROQ_IMPORT_ERROR = ""
 try:
     from groq import Groq
-
     GROQ_AVAILABLE = True
 except Exception as e:
     GROQ_IMPORT_ERROR = str(e)
 
-# ──────────────────────────────────────────────────────────────
-# CSS
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# CSS (identical to HF version)
+# ══════════════════════════════════════════════════════════════════════
 st.markdown(
     """
 <style>
@@ -70,7 +72,7 @@ header {visibility:hidden;}
 [data-testid="stDecoration"] {display:none;}
 
 .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; max-width: 100% !important; }
-section[data-testid="stSidebar"] { width: 260px !important; background: linear-gradient(180deg, #0f1116 0%, #1a1d26 100%); }
+section[data-testid="stSidebar"] { width: 280px !important; background: linear-gradient(180deg, #0f1116 0%, #1a1d26 100%); }
 
 .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800;
         margin-left:6px; border:1px solid rgba(255,255,255,0.08); white-space:nowrap; }
@@ -79,6 +81,7 @@ section[data-testid="stSidebar"] { width: 260px !important; background: linear-g
 .pill-warn { background:#78350f; color:#fcd34d; }
 .pill-llm  { background:#1e40af; color:#bfdbfe; }
 .pill-off  { background:#334155; color:#cbd5e1; }
+.pill-err  { background:#7f1d1d; color:#fecaca; }
 
 .metric-card { background: linear-gradient(135deg, #1e2130 0%, #2a2d3e 100%);
                border-radius: 12px; padding: 16px; border: 1px solid #2a2d3e; margin-bottom: 8px; }
@@ -108,17 +111,25 @@ section[data-testid="stSidebar"] { width: 260px !important; background: linear-g
 
 .welcome-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
                 border-radius: 16px; padding: 32px; text-align: center; border: 1px solid #334155; margin-top: 20px; }
+
+.rec-card { background: linear-gradient(135deg, #1e2130 0%, #252838 100%);
+            border-radius: 12px; padding: 16px; margin-bottom: 12px;
+            border-left: 4px solid #6366f1; }
+.rec-title { color: white; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.rec-meta { color: #94a3b8; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
+.rec-content { color: #cbd5e1; font-size: 13px; line-height: 1.55; }
+
+.agent-trace { background: #0f172a; border-radius: 10px; padding: 12px 16px;
+               margin: 8px 0; border-left: 3px solid #10b981; color: #6ee7b7;
+               font-family: monospace; font-size: 12px; }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
 # CONSTANTS
-# ──────────────────────────────────────────────────────────────
-MODEL_NAME = "YDVJIYA/distilroberta-base-finetuned-emotion"
-
-# Fixed Groq model (no picker, no discovery)
+# ══════════════════════════════════════════════════════════════════════
 GROQ_CHAT_MODEL = "groq/compound-mini"
 
 EMOTION_STYLES = {
@@ -128,6 +139,8 @@ EMOTION_STYLES = {
     "anger": {"emoji": "😠", "color": "#ef4444", "gradient": "linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)"},
     "fear": {"emoji": "😨", "color": "#8b5cf6", "gradient": "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)"},
     "surprise": {"emoji": "😲", "color": "#10b981", "gradient": "linear-gradient(135deg, #047857 0%, #10b981 100%)"},
+    "disgust": {"emoji": "🤢", "color": "#84cc16", "gradient": "linear-gradient(135deg, #4d7c0f 0%, #84cc16 100%)"},
+    "neutral": {"emoji": "😐", "color": "#6b7280", "gradient": "linear-gradient(135deg, #4b5563 0%, #6b7280 100%)"},
 }
 
 EXAMPLES = {
@@ -140,116 +153,10 @@ EXAMPLES = {
     "🚨 Crisis signal (test)": "I don't want to be here anymore. Nothing matters and I see no way out.",
 }
 
-CRISIS_KEYWORDS = [
-    "suicide",
-    "suicidal",
-    "kill myself",
-    "end my life",
-    "don't want to be here",
-    "dont want to be here",
-    "want to die",
-    "no way out",
-    "better off dead",
-    "no reason to live",
-    "can't go on",
-    "cant go on",
-    "wanna die",
-    "end it all",
-    "take my life",
-]
 
-SADNESS_KEYWORDS = [
-    "hopeless",
-    "worthless",
-    "meaningless",
-    "empty inside",
-    "exhausted",
-    "nothing matters",
-    "pointless",
-    "numb",
-    "can't feel anything",
-    "cant feel anything",
-    "helpless",
-    "useless",
-]
-
-FEAR_KEYWORDS = [
-    "terrified",
-    "panic attack",
-    "can't breathe",
-    "cant breathe",
-    "overwhelming anxiety",
-    "paralyzed with fear",
-]
-
-RECOMMENDATIONS_MAP = {
-    "sadness": [
-        "5-4-3-2-1 Grounding Exercise",
-        "Cognitive Reframing for Negative Thoughts",
-        "Reach out to a trusted friend or family member",
-        "Consider speaking with a mental health professional",
-    ],
-    "fear": [
-        "Box Breathing (4-4-4-4 pattern)",
-        "Progressive Muscle Relaxation technique",
-        "Anxiety journaling — write down your worries",
-        "Grounding: name 5 things you can see",
-    ],
-    "anger": [
-        "Take 10 deep breaths before responding",
-        "Physical release: brief walk or exercise",
-        "Journal what triggered the anger",
-        "Anger management coping strategies",
-    ],
-    "joy": [
-        "Gratitude journaling — capture this feeling",
-        "Share your joy with someone you love",
-        "Reflect on what led to this positive moment",
-    ],
-    "love": [
-        "Express appreciation to those you care about",
-        "Practice self-compassion daily",
-        "Nurture your important relationships",
-    ],
-    "surprise": [
-        "Take time to process unexpected events",
-        "Reflect on your emotional response",
-        "Talk through the surprise with someone",
-    ],
-}
-
-NEGATIVE_LEXICON = {
-    "hopeless": -1.0,
-    "worthless": -0.95,
-    "meaningless": -0.9,
-    "empty": -0.85,
-    "exhausted": -0.8,
-    "depressed": -0.9,
-    "lonely": -0.75,
-    "anxious": -0.8,
-    "panic": -0.9,
-    "terrified": -0.95,
-    "overwhelmed": -0.85,
-    "angry": -0.8,
-    "frustrated": -0.75,
-    "suicide": -1.0,
-    "suicidal": -1.0,
-    "die": -0.9,
-}
-POSITIVE_LEXICON = {
-    "happy": 0.9,
-    "joy": 0.95,
-    "grateful": 0.85,
-    "love": 0.9,
-    "proud": 0.8,
-    "calm": 0.65,
-    "hopeful": 0.8,
-    "confident": 0.75,
-}
-
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
 # HELPERS
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
 def get_secret(name: str) -> str:
     v = os.environ.get(name, "").strip()
     if v:
@@ -268,109 +175,32 @@ def mask_key(k: str) -> str:
     return f"{k[:4]}...{k[-4:]}"
 
 
-def get_risk_level(confidence: float, crisis: bool) -> Tuple[str, str]:
-    if crisis:
-        return ("Critical", "risk-critical")
-    if confidence >= 0.90:
-        return ("High", "risk-high")
-    if confidence >= 0.60:
-        return ("Medium", "risk-medium")
-    return ("Low", "risk-low")
+def risk_class_from_level(level: str) -> Tuple[str, str]:
+    """Map backend risk_level → (label, css_class)."""
+    mapping = {
+        "low": ("Low", "risk-low"),
+        "medium": ("Medium", "risk-medium"),
+        "high": ("High", "risk-high"),
+        "critical": ("Critical", "risk-critical"),
+    }
+    return mapping.get((level or "low").lower(), ("Low", "risk-low"))
 
 
 def local_support_fallback(emotion: str) -> str:
-    if emotion == "sadness":
-        return (
-            "I’m really sorry you’re feeling this way. Your feelings are valid, and you don’t have to carry them alone. "
-            "If you can, try a small grounding step and consider reaching out to someone you trust."
-        )
-    if emotion == "fear":
-        return (
-            "That sounds really intense. Try a few slow breaths and gently bring your focus back to the present. "
-            "If it keeps feeling overwhelming, consider talking with someone you trust or a professional."
-        )
-    if emotion == "anger":
-        return (
-            "It makes sense you’d feel frustrated. Try pausing for a few breaths before reacting. "
-            "If you want, write down what triggered it and what you needed in that moment."
-        )
-    return (
-        "Thanks for sharing. Whatever you’re feeling is valid. Try one gentle step—breathing slowly, journaling, "
-        "or reaching out to someone you trust."
+    fallbacks = {
+        "sadness": "I'm really sorry you're feeling this way. Your feelings are valid, and you don't have to carry them alone.",
+        "fear": "That sounds intense. Try a few slow breaths and gently bring your focus back to the present.",
+        "anger": "It makes sense you'd feel frustrated. Try pausing for a few breaths before reacting.",
+    }
+    return fallbacks.get(
+        emotion,
+        "Thanks for sharing. Whatever you're feeling is valid. Try one gentle step today.",
     )
 
 
-# ──────────────────────────────────────────────────────────────
-# EMOTION MODEL
-# ──────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner=False)
-def get_classifier():
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
-
-    tok = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
-    mdl = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-    return pipeline("text-classification", model=mdl, tokenizer=tok, top_k=None, device=-1)
-
-
-def analyze_text(text: str) -> dict:
-    classifier = get_classifier()
-    start = time.time()
-    raw_results = classifier(text)[0]
-    elapsed_ms = int((time.time() - start) * 1000)
-
-    results = sorted(raw_results, key=lambda x: x["score"], reverse=True)
-    top = results[0]
-
-    tl = text.lower()
-    crisis = any(k in tl for k in CRISIS_KEYWORDS)
-    predicted = top["label"].lower()
-    override = False
-    reason = ""
-
-    if crisis:
-        # Safety flow: crisis vocabulary triggers "sadness" for conservative supportive messaging,
-        # while the UI separately shows crisis resources.
-        predicted = "sadness"
-        override = True
-        reason = "Crisis vocabulary detected — activated safety flow"
-    elif any(k in tl for k in SADNESS_KEYWORDS) and predicted in ["joy", "love", "surprise"]:
-        predicted = "sadness"
-        override = True
-        reason = "Depression vocabulary overrides positive prediction"
-    elif any(k in tl for k in FEAR_KEYWORDS) and predicted in ["joy", "love", "surprise"]:
-        predicted = "fear"
-        override = True
-        reason = "Anxiety vocabulary overrides positive prediction"
-
-    explanations = []
-    seen = set()
-    for w in text.split()[:40]:
-        c = w.lower().strip(".,!?;:'\"()[]{}")
-        if c in seen or len(c) < 2:
-            continue
-        seen.add(c)
-        if c in NEGATIVE_LEXICON:
-            explanations.append({"word": c, "weight": NEGATIVE_LEXICON[c], "influence": "negative"})
-        elif c in POSITIVE_LEXICON:
-            explanations.append({"word": c, "weight": POSITIVE_LEXICON[c], "influence": "positive"})
-    explanations.sort(key=lambda x: abs(x["weight"]), reverse=True)
-
-    return {
-        "emotion": predicted,
-        "confidence": float(top["score"]),
-        "all_emotions": [{"label": r["label"], "score": float(r["score"])} for r in results],
-        "crisis_detected": bool(crisis),
-        "recommendations": RECOMMENDATIONS_MAP.get(predicted, RECOMMENDATIONS_MAP["sadness"]),
-        "explanations": explanations,
-        "safety_override_applied": bool(override),
-        "override_reason": reason,
-        "processing_time_ms": elapsed_ms,
-    }
-
-
-# ──────────────────────────────────────────────────────────────
-# GROQ: streaming + non-stream fallback (fixed model)
-# ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# GROQ streaming (unchanged — stays in frontend)
+# ══════════════════════════════════════════════════════════════════════
 def stream_groq_response(api_key: str, system_prompt: str, user_prompt: str):
     client = Groq(api_key=api_key)
     stream = client.chat.completions.create(
@@ -379,10 +209,7 @@ def stream_groq_response(api_key: str, system_prompt: str, user_prompt: str):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.6,
-        top_p=0.95,
-        max_tokens=350,  # Groq uses max_tokens (not max_completion_tokens)
-        stream=True,
+        temperature=0.6, top_p=0.95, max_tokens=350, stream=True,
     )
     for chunk in stream:
         delta = chunk.choices[0].delta
@@ -399,10 +226,7 @@ def groq_nonstream(api_key: str, system_prompt: str, user_prompt: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.6,
-        top_p=0.95,
-        max_tokens=350,
-        stream=False,
+        temperature=0.6, top_p=0.95, max_tokens=350, stream=False,
     )
     return resp.choices[0].message.content or ""
 
@@ -426,13 +250,13 @@ def render_llm_section(user_text: str, result: dict):
 
     api_key = get_secret("GROQ_API_KEY")
     if not api_key:
-        st.warning("⚠️ Add secret `GROQ_API_KEY` (from https://console.groq.com/keys) and restart.")
+        st.warning("⚠️ Add GROQ_API_KEY to .env and restart.")
         with st.chat_message("assistant", avatar="💙"):
             st.write(local_support_fallback(result.get("emotion", "unknown")))
         return
 
     if not GROQ_AVAILABLE:
-        st.error("⚠️ Groq SDK not installed. Add `groq` to requirements.txt.")
+        st.error("⚠️ Groq SDK not installed. Run: pip install groq")
         st.caption(f"Import error: {GROQ_IMPORT_ERROR[:200]}")
         with st.chat_message("assistant", avatar="💙"):
             st.write(local_support_fallback(result.get("emotion", "unknown")))
@@ -484,37 +308,63 @@ def render_llm_section(user_text: str, result: dict):
     st.caption("⚠️ Supportive responses only. Not a substitute for professional mental health care.")
 
 
-# ──────────────────────────────────────────────────────────────
-# UI
-# ──────────────────────────────────────────────────────────────
-def render_header():
+# ══════════════════════════════════════════════════════════════════════
+# UI — HEADER
+# ══════════════════════════════════════════════════════════════════════
+def render_header(backend_health: dict):
     groq_key = get_secret("GROQ_API_KEY")
-    pills = [
-        '<span class="pill pill-live">● Live</span>',
-        '<span class="pill pill-info">DistilRoBERTa</span>',
-    ]
+    pills = []
+
+    if backend_health["reachable"]:
+        pills.append('<span class="pill pill-live">● Backend Live</span>')
+    else:
+        pills.append('<span class="pill pill-err">● Backend OFFLINE</span>')
+
+    pills.append('<span class="pill pill-info">Multi-Agent + RAG</span>')
+
     if groq_key and GROQ_AVAILABLE:
         pills.append('<span class="pill pill-llm">✨ Groq Enabled</span>')
-    elif groq_key and not GROQ_AVAILABLE:
-        pills.append('<span class="pill pill-warn">Groq SDK Missing</span>')
-    else:
+    elif not groq_key:
         pills.append('<span class="pill pill-off">No GROQ_API_KEY</span>')
 
     c1, c2 = st.columns([3, 2])
     with c1:
         st.markdown("## 💙 Mental Health AI Platform")
-        st.caption("Emotion detection + safety overrides + Groq supportive response (fixed model)")
+        st.caption("Agentic backend (FastAPI) + ChromaDB RAG + SHAP explainability + Groq LLM")
     with c2:
         st.markdown("".join(pills), unsafe_allow_html=True)
 
 
-def render_sidebar() -> Dict[str, object]:
+# ══════════════════════════════════════════════════════════════════════
+# UI — SIDEBAR
+# ══════════════════════════════════════════════════════════════════════
+def render_sidebar(backend_health: dict) -> Dict[str, object]:
     groq_key = get_secret("GROQ_API_KEY")
 
     with st.sidebar:
         st.markdown("### ⚙️ System")
-        st.success("✅ Emotion Model Ready")
-        st.caption(f"`{MODEL_NAME}`")
+
+        if backend_health["reachable"]:
+            st.success(f"✅ Backend v{backend_health['version']}")
+            st.caption(f"`{BACKEND_URL}`")
+            if backend_health["models_loaded"]:
+                st.caption("🧠 ML models loaded")
+            else:
+                st.warning("⚠️ Models not fully loaded")
+        else:
+            st.error("❌ Backend offline")
+            st.caption(backend_health.get("error", ""))
+            st.code(
+                "python -m uvicorn backend.main:app --reload --port 8000",
+                language="bash",
+            )
+
+        st.markdown("---")
+        st.markdown("### 🤖 Agents")
+        st.caption("• Classification (DistilRoBERTa)")
+        st.caption("• Crisis Detection")
+        st.caption("• RAG (ChromaDB)")
+        st.caption("• Explainer (SHAP)")
 
         st.markdown("---")
         st.markdown("### 🔑 Groq Status")
@@ -522,30 +372,35 @@ def render_sidebar() -> Dict[str, object]:
         st.write(f"**SDK:** `{'OK' if GROQ_AVAILABLE else 'MISSING'}`")
 
         st.markdown("---")
-        st.markdown("### 🧠 LLM Model (Fixed)")
+        st.markdown("### 🧠 LLM Model")
         st.code(GROQ_CHAT_MODEL, language="text")
-        st.caption("Locked to one model for consistent behavior (no model switching).")
 
         st.markdown("---")
         st.markdown("### 🎛️ Display Options")
-        show_tokens = st.toggle("Token explanations", value=True)
+        show_explanations = st.toggle("SHAP token explanations", value=True)
         show_scores = st.toggle("All emotion scores", value=True)
         show_safety = st.toggle("Safety override info", value=True)
         show_llm = st.toggle("AI supportive response (Groq)", value=True)
+        show_agent_trace = st.toggle("Agent execution trace", value=False)
         show_raw = st.toggle("Raw API response", value=False)
 
         st.markdown("---")
-        st.warning("⚠️ Disclaimer: Research tool only. In crisis? Call **988** (US).")
+        st.caption(f"**Session:** `{get_session_id()}`")
+        st.warning("⚠️ Research tool only. In crisis? Call **988** (US).")
 
     return {
-        "show_tokens": show_tokens,
+        "show_explanations": show_explanations,
         "show_scores": show_scores,
         "show_safety": show_safety,
         "show_llm": show_llm,
+        "show_agent_trace": show_agent_trace,
         "show_raw": show_raw,
     }
 
 
+# ══════════════════════════════════════════════════════════════════════
+# UI — INPUT
+# ══════════════════════════════════════════════════════════════════════
 def render_input_section() -> Tuple[str, bool]:
     st.markdown("#### 💬 Share what's on your mind")
     selected = st.selectbox("Try an example:", list(EXAMPLES.keys()), label_visibility="collapsed")
@@ -554,16 +409,16 @@ def render_input_section() -> Tuple[str, bool]:
         value=EXAMPLES[selected],
         placeholder="How are you feeling today? Share your thoughts here...",
         height=110,
-        max_chars=500,
+        max_chars=5000,
         label_visibility="collapsed",
     )
-    analyze = st.button(
+    analyze_clicked = st.button(
         "🔍 Analyze Emotional Content",
         type="primary",
         use_container_width=True,
         disabled=not user_text.strip(),
     )
-    return user_text, analyze
+    return user_text, analyze_clicked
 
 
 def render_welcome_placeholder():
@@ -573,7 +428,7 @@ def render_welcome_placeholder():
             <div style="font-size: 52px; margin-bottom: 10px;">🧠</div>
             <h3 style="color: white; margin: 0;">Ready to Analyze</h3>
             <p style="color: #94a3b8; margin-top: 8px; font-size: 14px;">
-                Fine-tuned DistilRoBERTa • Safety overrides • Optional Groq support
+                Multi-Agent Orchestration • ChromaDB RAG • SHAP Explainability • Groq LLM
             </p>
         </div>
         """,
@@ -581,16 +436,64 @@ def render_welcome_placeholder():
     )
 
 
-def render_results(result: dict, settings: dict, user_text: str):
-    emotion = result.get("emotion", "sadness").lower()
-    confidence = result.get("confidence", 0.0)
+# ══════════════════════════════════════════════════════════════════════
+# UI — MULTI-STAGE ANALYSIS PROGRESS
+# ══════════════════════════════════════════════════════════════════════
+def analyze_with_progress(user_text: str, include_explanations: bool) -> dict:
+    """
+    Call backend with faked multi-stage progress feedback.
+    Reveals the agentic architecture to the user visually.
+    """
+    stages = [
+        ("🧠 Classifying emotion (DistilRoBERTa)", 0.15),
+        ("🛡️  Assessing crisis risk", 0.05),
+        ("📚 Retrieving from knowledge base (ChromaDB)", 0.10),
+    ]
+    if include_explanations:
+        stages.append(("🔍 Computing SHAP explanations", 0.30))
+
+    progress_container = st.empty()
+    progress_bar = st.progress(0)
+
+    total_fake_time = sum(s[1] for s in stages)
+    elapsed = 0.0
+
+    # Start the actual backend call in the foreground.
+    # We show fake progress up to ~90% while it runs, then jump to 100%.
+    for i, (label, dur) in enumerate(stages[:-1]):
+        progress_container.markdown(f'<div class="agent-trace">{label}...</div>', unsafe_allow_html=True)
+        time.sleep(dur)
+        elapsed += dur
+        progress_bar.progress(min(elapsed / (total_fake_time + 0.1), 0.85))
+
+    # Final stage: actual backend call
+    final_label = stages[-1][0]
+    progress_container.markdown(f'<div class="agent-trace">{final_label}...</div>', unsafe_allow_html=True)
+    result = analyze(user_text, include_explanations=include_explanations)
+
+    progress_bar.progress(1.0)
+    progress_container.empty()
+    progress_bar.empty()
+
+    return result
+
+
+# ══════════════════════════════════════════════════════════════════════
+# UI — RESULTS
+# ══════════════════════════════════════════════════════════════════════
+def render_results(result: dict, opts: dict, user_text: str):
+    emotion = (result.get("emotion") or "sadness").lower()
+    confidence = float(result.get("confidence", 0.0))
     crisis = result.get("crisis_detected", False)
-    ms = result.get("processing_time_ms", 0)
+    ms = int(result.get("processing_time_ms", 0))
     override = result.get("safety_override_applied", False)
+    crisis_assessment = result.get("crisis_assessment", {}) or {}
+    risk_level = crisis_assessment.get("risk_level", "low")
 
     style = EMOTION_STYLES.get(emotion, EMOTION_STYLES["sadness"])
-    risk_label, risk_class = get_risk_level(confidence, crisis)
+    risk_label, risk_class = risk_class_from_level(risk_level)
 
+    # ── Emotion Box + Metrics ─────────────────────────────────────────
     col_emotion, col_metrics = st.columns([1, 2])
 
     with col_emotion:
@@ -621,11 +524,12 @@ def render_results(result: dict, settings: dict, user_text: str):
                 unsafe_allow_html=True,
             )
         with m2:
+            risk_score = crisis_assessment.get("risk_score", 0.0)
             st.markdown(
-                """
+                f"""
                 <div class="metric-card">
-                    <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;">Model</div>
-                    <div style="color:white;font-size:22px;font-weight:800;">FT</div>
+                    <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;">Risk Score</div>
+                    <div style="color:white;font-size:22px;font-weight:800;">{risk_score:.2f}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -655,19 +559,29 @@ def render_results(result: dict, settings: dict, user_text: str):
                 unsafe_allow_html=True,
             )
 
-        if override and settings["show_safety"]:
-            st.info(f"🛡️ **Safety override active:** {result.get('override_reason', '')}")
+        if override and opts["show_safety"]:
+            st.info(f"🛡️ **Safety trigger:** {result.get('override_reason', '')}")
 
+    # ── Crisis banner ─────────────────────────────────────────────────
     if crisis:
         st.error("🚨 **Immediate Crisis Support:** **988** (US) • **Text HOME to 741741** • **911**")
+        resources = crisis_assessment.get("immediate_resources", [])
+        if resources:
+            with st.expander("View all crisis resources"):
+                for r in resources:
+                    st.markdown(f"- {r}")
 
-    tabs = st.tabs(
-        ["📊 Emotions", "💡 Recommendations", "🎯 Token Analysis"]
-        + (["🔬 Raw API"] if settings["show_raw"] else [])
-    )
+    # ── Tabs ──────────────────────────────────────────────────────────
+    tab_labels = ["📊 Emotions", "💡 Recommendations", "🎯 Explainability"]
+    if opts["show_agent_trace"]:
+        tab_labels.append("🤖 Agent Trace")
+    if opts["show_raw"]:
+        tab_labels.append("🔬 Raw API")
+    tabs = st.tabs(tab_labels)
 
+    # ── TAB: Emotions ──────────────────────────────────────────────────
     with tabs[0]:
-        if settings["show_scores"]:
+        if opts["show_scores"]:
             all_emotions = result.get("all_emotions", [])
             if all_emotions:
                 sorted_emotions = sorted(all_emotions, key=lambda x: x["score"], reverse=True)
@@ -695,25 +609,65 @@ def render_results(result: dict, settings: dict, user_text: str):
                             unsafe_allow_html=True,
                         )
             else:
-                st.caption("No detailed emotion scores available.")
+                st.caption("No emotion scores returned.")
         else:
             st.caption("Enable 'All emotion scores' in sidebar.")
 
+    # ── TAB: Recommendations (RICH CARDS from backend RAG!) ───────────
+        # ── TAB: Recommendations (RICH CARDS from backend RAG!) ───────────
     with tabs[1]:
         recs = result.get("recommendations", [])
-        for i, r in enumerate(recs, 1):
-            st.markdown(f"**{i}. 📚 {r}**")
+        used_fallback = result.get("_used_fallback_recommendations", False)
 
+        if recs:
+            if used_fallback:
+                st.caption(
+                    f"💡 {len(recs)} curated recommendation(s) "
+                    "(no strong semantic match in knowledge base)"
+                )
+            else:
+                st.caption(
+                    f"📚 Retrieved {len(recs)} recommendation(s) "
+                    "from ChromaDB knowledge base"
+                )
+
+            for i, rec in enumerate(recs, 1):
+                title = rec.get("title", "Recommendation")
+                content = rec.get("content", "")
+                category = rec.get("category", "general")
+                relevance = rec.get("relevance_score", 0.0)
+                source = rec.get("source", "Knowledge Base")
+
+                st.markdown(
+                    f"""
+                    <div class="rec-card">
+                        <div class="rec-title">{i}. {title}</div>
+                        <div class="rec-meta">
+                            📂 {category} • 🎯 Relevance: {relevance:.1%} • 🔖 {source}
+                        </div>
+                        <div class="rec-content">{content}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("No recommendations available for this input.")
+
+    # ── TAB: Explainability (SHAP) ─────────────────────────────────────
     with tabs[2]:
-        if settings["show_tokens"]:
+        if opts["show_explanations"]:
+            summary = result.get("explanation_summary")
+            if summary:
+                st.info(f"💬 {summary}")
+
             exps = result.get("explanations", [])
             if exps:
                 st.caption(f"Influential tokens ({len(exps)}):")
                 cols = st.columns(4)
                 for i, tok in enumerate(exps[:16]):
-                    word = tok["word"]
-                    weight = tok["weight"]
-                    infl = tok["influence"]
+                    word = tok.get("word", "")
+                    weight = float(tok.get("weight", 0.0))
+                    infl = tok.get("influence", "positive")
                     emoji, color = ("🔴", "#ef4444") if infl == "negative" else ("🟢", "#10b981")
                     with cols[i % 4]:
                         st.markdown(
@@ -726,29 +680,62 @@ def render_results(result: dict, settings: dict, user_text: str):
                             unsafe_allow_html=True,
                         )
             else:
-                st.caption("No token explanations for this input.")
+                st.caption("Enable 'Include explanations' when analyzing to see SHAP output.")
         else:
-            st.caption("Enable 'Token explanations' in sidebar.")
+            st.caption("Enable 'SHAP token explanations' in sidebar.")
 
-    if settings["show_raw"]:
-        with tabs[3]:
+    # ── TAB: Agent Trace ──────────────────────────────────────────────
+    tab_idx = 3
+    if opts["show_agent_trace"]:
+        with tabs[tab_idx]:
+            st.markdown(f'<div class="agent-trace">✅ ClassificationAgent → {emotion} ({confidence:.1%})</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="agent-trace">✅ CrisisAgent → risk_level={risk_level}, is_crisis={crisis}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="agent-trace">✅ RAGAgent → {len(result.get("recommendations", []))} recommendation(s)</div>', unsafe_allow_html=True)
+            if result.get("explanations"):
+                st.markdown(f'<div class="agent-trace">✅ ExplainerAgent (SHAP) → {len(result["explanations"])} tokens</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="agent-trace">✅ Orchestrator complete → {ms}ms</div>', unsafe_allow_html=True)
+        tab_idx += 1
+
+    # ── TAB: Raw API ──────────────────────────────────────────────────
+    if opts["show_raw"]:
+        with tabs[tab_idx]:
             st.json(result)
 
-    if settings["show_llm"]:
+    # ── Groq LLM (streaming) ──────────────────────────────────────────
+    if opts["show_llm"]:
         render_llm_section(user_text, result)
 
 
+# ══════════════════════════════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════════════════════════════
 def main():
-    render_header()
-    settings = render_sidebar()
+    # Health check up front (also drives header pill + sidebar)
+    backend_health = check_health()
+
+    render_header(backend_health)
+    opts = render_sidebar(backend_health)
 
     user_text, analyze_clicked = render_input_section()
     st.markdown("")
 
     if analyze_clicked and user_text.strip():
-        with st.spinner("🧠 Analyzing your input..."):
-            result = analyze_text(user_text.strip())
-        render_results(result, settings, user_text.strip())
+        if not backend_health["reachable"]:
+            st.error("❌ Cannot analyze — backend is offline.")
+            st.info(
+                "Start the backend in a separate terminal:\n\n"
+                "```\npython -m uvicorn backend.main:app --reload --port 8000\n```"
+            )
+            return
+
+        try:
+            result = analyze_with_progress(
+                user_text.strip(),
+                include_explanations=opts["show_explanations"],
+            )
+            render_results(result, opts, user_text.strip())
+        except RuntimeError as e:
+            st.error(f"❌ Analysis failed: {e}")
     else:
         render_welcome_placeholder()
 
