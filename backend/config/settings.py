@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     EMOTION_MODEL_NAME: str = "YDVJIYA/distilroberta-base-finetuned-emotion"
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    
+    # ── Explainability (SHAP) ─────────────────────────────────────────────
+    EXPLAINER_MAX_TOKENS: int = 50
+    EXPLAINER_TOP_N: int = 10
+    EXPLAINER_ENABLED: bool = True
+    SHAP_MAX_EVALS: int = 100
 
     # Model behavior
     MAX_SEQUENCE_LENGTH: int = 512
