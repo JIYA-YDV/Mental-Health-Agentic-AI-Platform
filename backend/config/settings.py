@@ -56,8 +56,14 @@ class Settings(BaseSettings):
     # ── RAG / Vector Store ────────────────────────────────────────────────
     CHROMA_PERSIST_DIR: str = str(PROJECT_ROOT / "data" / "chroma_db")
     CHROMA_COLLECTION_NAME: str = "mental_health_kb"
+    
+    # Support both naming conventions used across codebase
     RAG_TOP_K: int = 3
+    TOP_K_RETRIEVAL: int = 3                     # ← ADD THIS LINE
+    
     RAG_SIMILARITY_THRESHOLD: float = 0.5
+    SIMILARITY_THRESHOLD: float = 0.5            # ← ADD THIS LINE (safety)
+    
     KNOWLEDGE_BASE_PATH: str = str(PROJECT_ROOT / "datasets" / "knowledge_base")
 
     # ── Monitoring & Metrics ──────────────────────────────────────────────
