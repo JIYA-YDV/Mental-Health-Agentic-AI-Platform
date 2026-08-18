@@ -91,6 +91,7 @@ class ClassificationResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     emotion: str
+    emotion_display: Optional[str] = None
     confidence: float = Field(ge=0.0, le=1.0)
     all_predictions: List[PredictionScore]
 

@@ -107,6 +107,7 @@ async def classify_text(
         # ── Build and return response ─────────────────────────────────
         return ClassificationResponse(
             emotion=result["emotion"],
+            emotion_display=result.get("emotion_display"),
             confidence=result["confidence"],
             all_predictions=[
                 PredictionScore(**p) for p in result["all_predictions"]

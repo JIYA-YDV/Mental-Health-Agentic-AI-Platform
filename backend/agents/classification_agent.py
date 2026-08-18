@@ -29,25 +29,18 @@ class ClassificationAgent:
     async def run(self, text: str) -> Dict[str, Any]:
         """
         Execute classification on input text.
-
-        Args:
-            text: Cleaned user input
-
-        Returns:
-            Classification result with emotion, confidence, all scores
+        Returns raw lowercase emotion (sadness, fear, joy, etc.)
+        UI layer is responsible for display formatting.
         """
         logger.info("ClassificationAgent running", text_length=len(text))
 
         try:
             result = emotion_classifier.predict(text)
 
-            # Map to display names
-            result["emotion"] = self.EMOTION_DISPLAY_MAP.get(
-                result["emotion"].lower(),
-                result["emotion"]
-            )
+            # Normalize to lowercase (don't rename - UI handles display)
+            result["emotion"] = result["emotion"].lower()
 
-            # Flag low confidence predictions
+            # Flag low confidence
             if result["confidence"] < self.MIN_CONFIDENCE_THRESHOLD:
                 logger.warning(
                     "Low confidence prediction",
@@ -57,6 +50,12 @@ class ClassificationAgent:
                 result["low_confidence"] = True
             else:
                 result["low_confidence"] = False
+
+            # Optional: pretty display name (separate field, doesn't affect logic)
+            result["emotion_display"] = self.EMOTION_DISPLAY_MAP.get(
+                result["emotion"],
+                result["emotion"].title()
+            )
 
             logger.info(
                 "ClassificationAgent complete",

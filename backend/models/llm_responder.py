@@ -9,10 +9,18 @@ import sys
 from pathlib import Path
 from typing import Generator, Optional
 
-# Add project root to sys.path for direct script execution
+# ============================================================
+# PATH SETUP + ENV LOADING (must run BEFORE any imports that need env)
+# ============================================================
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env explicitly from project root
+from dotenv import load_dotenv
+ENV_PATH = PROJECT_ROOT / ".env"
+load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 from groq import Groq
 
@@ -25,8 +33,11 @@ except ImportError:
 
 
 # ============================================================
-# CONSTANTS - Plain ASCII, no emojis in code
+# CONSTANTS
 # ============================================================
+
+# Default model - Groq's free compound systems model (replaces versatile)
+DEFAULT_MODEL = "groq/compound-mini"
 
 CRISIS_REDIRECT_MESSAGE = (
     "I can see you might be going through an extremely difficult time. "
@@ -59,24 +70,25 @@ class LLMResponder:
     """Generates empathetic streaming responses using Groq's LLM API."""
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
-        # Priority: passed arg > env var > settings > error
+        # Priority: passed arg > env var > settings > default
         self.api_key = (
             api_key
             or os.getenv("GROQ_API_KEY")
-            or (settings.GROQ_API_KEY if SETTINGS_AVAILABLE else None)
+            or (getattr(settings, "GROQ_API_KEY", None) if SETTINGS_AVAILABLE else None)
         )
 
         self.model = (
             model
             or os.getenv("GROQ_MODEL")
-            or (settings.GROQ_MODEL if SETTINGS_AVAILABLE else "llama-3.1-8b-instant")
+            or (getattr(settings, "GROQ_MODEL", None) if SETTINGS_AVAILABLE else None)
+            or DEFAULT_MODEL
         )
 
         if not self.api_key:
             raise ValueError(
                 "GROQ_API_KEY not found. "
                 "Get a free key at https://console.groq.com and add "
-                "GROQ_API_KEY=your_key to the .env file."
+                "GROQ_API_KEY=your_key to the .env file in project root."
             )
 
         self.client = Groq(api_key=self.api_key)
@@ -180,28 +192,33 @@ if __name__ == "__main__":
     print("Testing LLM Responder")
     print("=" * 60)
 
+    # Debug info
+    print(f"\n[DEBUG] Project root: {PROJECT_ROOT}")
+    print(f"[DEBUG] .env path:    {ENV_PATH}")
+    print(f"[DEBUG] .env exists:  {ENV_PATH.exists()}")
+
     api_key = os.getenv("GROQ_API_KEY", "")
     if not api_key and SETTINGS_AVAILABLE:
-        api_key = settings.GROQ_API_KEY
+        api_key = getattr(settings, "GROQ_API_KEY", "") or ""
 
     if not api_key:
-        print("\nGROQ_API_KEY not found!")
+        print("\n[ERROR] GROQ_API_KEY not found!")
         print("\nTo fix:")
         print("  1. Get free key at: https://console.groq.com")
-        print("  2. Add to .env file: GROQ_API_KEY=gsk_your_key_here")
-        print("  3. Or set env var: $env:GROQ_API_KEY='gsk_your_key'")
+        print(f"  2. Create/edit file: {ENV_PATH}")
+        print("  3. Add this line:  GROQ_API_KEY=gsk_your_key_here")
+        print("     (no spaces, no quotes)")
         sys.exit(1)
 
-    print(f"\n[OK] API key found (length: {len(api_key)})")
-    print(f"[OK] Model: llama3-8b-8192")
+    print(f"\n[OK] API key found (length: {len(api_key)}, starts with: {api_key[:6]}...)")
+
+    responder = LLMResponder()
+    print(f"[OK] Model: {responder.model}")
 
     # Test 1: Normal sad input
     print("\n" + "=" * 60)
     print("Test 1: Sadness input (should stream response)")
     print("=" * 60)
-
-    responder = LLMResponder()
-
     print("\nStreaming response:\n")
     for chunk in responder.stream_response(
         user_text="I've been feeling really sad and empty lately",
@@ -211,10 +228,10 @@ if __name__ == "__main__":
     ):
         print(chunk, end="", flush=True)
 
+    # Test 2: Crisis input
     print("\n\n" + "=" * 60)
     print("Test 2: Crisis input (should show static message)")
     print("=" * 60)
-
     print("\nStreaming response:\n")
     for chunk in responder.stream_response(
         user_text="I don't want to be here anymore",

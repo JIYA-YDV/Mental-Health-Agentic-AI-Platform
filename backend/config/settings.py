@@ -1,113 +1,106 @@
 # -*- coding: utf-8 -*-
 """
-Centralized configuration using Pydantic v2 BaseSettings.
-Loads from .env file automatically.
+Application settings — comprehensive, covers all subsystems.
 """
-
-from pydantic import field_validator
+from typing import List
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 class Settings(BaseSettings):
-    """All application settings in one place."""
+    """Central configuration for the Mental Health AI Platform."""
 
-    # ============================================================
-    # APPLICATION INFO
-    # ============================================================
-    APP_NAME: str = "Mental Health Agentic AI Platform"
-    APP_VERSION: str = "1.0.0"
-
-    # ============================================================
-    # MODEL CONFIGURATION
-    # ============================================================
-    EMOTION_MODEL: str = "YDVJIYA/distilroberta-base-finetuned-emotion"
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
-    MODEL_DEVICE: int = -1
-    MAX_LENGTH: int = 512
-
-    # ============================================================
-    # CRISIS DETECTION
-    # ============================================================
-    CRISIS_CONFIDENCE_THRESHOLD: float = 0.7
-
-    # ============================================================
-    # RAG PIPELINE
-    # ============================================================
-    SIMILARITY_THRESHOLD: float = 0.7
-    RAG_TOP_K: int = 3
-    TOP_K_RETRIEVAL: int = 3
-    FALLBACK_THRESHOLD_DELTA: float = 0.1
-    CHROMA_COLLECTION: str = "mental_health_resources"
-
-    # ============================================================
-    # EXPLAINER SETTINGS
-    # ============================================================
-    EXPLAINER_DISPLAY_THRESHOLD: float = 0.5
-    EXPLAINER_MIN_TOKENS: int = 10
-    EXPLAINER_MAX_TOKENS: int = 100
-
-    # ============================================================
-    # API SETTINGS
-    # ============================================================
-    API_HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    API_PORT: int = 8000
-    API_PREFIX: str = "/api"
-
-    # ============================================================
-    # LLM CONFIGURATION (Groq)
-    # ============================================================
-    GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-8b-instant"
-    LLM_MAX_TOKENS: int = 200
-    LLM_TEMPERATURE: float = 0.7
-    LLM_ENABLED: bool = True
-
-    # ============================================================
-    # LOGGING
-    # ============================================================
-    LOG_LEVEL: str = "INFO"
-
-    # ============================================================
-    # VALIDATORS
-    # ============================================================
-    @field_validator("LOG_LEVEL", mode="before")
-    @classmethod
-    def validate_log_level(cls, v):
-        """Normalize log level to uppercase and validate."""
-        if isinstance(v, str):
-            v = v.upper()
-            valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-            if v not in valid_levels:
-                raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
-        return v
-
-    @field_validator("PORT")
-    @classmethod
-    def validate_port(cls, v):
-        """Validate port is in valid range."""
-        if not (1 <= v <= 65535):
-            raise ValueError("PORT must be between 1 and 65535")
-        return v
-
-    @field_validator("SIMILARITY_THRESHOLD")
-    @classmethod
-    def validate_similarity_threshold(cls, v):
-        """Validate similarity threshold is between 0.0 and 1.0."""
-        if not (0.0 <= v <= 1.0):
-            raise ValueError("SIMILARITY_THRESHOLD must be between 0.0 and 1.0")
-        return v
-
-    # ============================================================
-    # PYDANTIC V2 CONFIG
-    # ============================================================
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
-        extra="ignore",
         case_sensitive=True,
+        extra="ignore",
     )
 
+    # ── App Metadata ──────────────────────────────────────────────────────
+    APP_NAME: str = "Mental Health Agentic AI Platform"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+    LOG_LEVEL: str = "INFO"
+    ENVIRONMENT: str = "development"
 
-# Instantiate settings - other files import this
+    # ── Server ────────────────────────────────────────────────────────────
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    API_PREFIX: str = ""
+
+    # ── Groq LLM ──────────────────────────────────────────────────────────
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "groq/compound-mini"
+    GROQ_TEMPERATURE: float = 0.7
+    GROQ_MAX_TOKENS: int = 350
+    GROQ_TOP_P: float = 0.95
+
+    # ── ML Models (both name variants for safety) ─────────────────────────
+    EMOTION_MODEL: str = "YDVJIYA/distilroberta-base-finetuned-emotion"
+    EMOTION_MODEL_NAME: str = "YDVJIYA/distilroberta-base-finetuned-emotion"
+    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+
+    # Model behavior
+    MAX_SEQUENCE_LENGTH: int = 512
+    MAX_LENGTH: int = 512
+    BATCH_SIZE: int = 16
+    DEVICE: str = "cpu"
+    USE_FAST_TOKENIZER: bool = False
+    MODEL_CACHE_DIR: str = str(PROJECT_ROOT / ".model_cache")
+
+    # ── RAG / Vector Store ────────────────────────────────────────────────
+    CHROMA_PERSIST_DIR: str = str(PROJECT_ROOT / "data" / "chroma_db")
+    CHROMA_COLLECTION_NAME: str = "mental_health_kb"
+    RAG_TOP_K: int = 3
+    RAG_SIMILARITY_THRESHOLD: float = 0.5
+    KNOWLEDGE_BASE_PATH: str = str(PROJECT_ROOT / "datasets" / "knowledge_base")
+
+    # ── Monitoring & Metrics ──────────────────────────────────────────────
+    METRICS_PORT: int = 9090
+    ENABLE_METRICS: bool = True
+    PROMETHEUS_ENABLED: bool = True
+
+    # ── Safety ────────────────────────────────────────────────────────────
+       # ── Crisis Detection Keywords ─────────────────────────────────────────
+    CRISIS_KEYWORDS: List[str] = [
+        "suicide",
+        "suicidal",
+        "kill myself",
+        "end my life",
+        "want to die",
+        "wanna die",
+        "don't want to be here",
+        "dont want to be here",
+        "no way out",
+        "better off dead",
+        "no reason to live",
+        "can't go on",
+        "cant go on",
+        "end it all",
+        "take my life",
+        "self harm",
+        "self-harm",
+        "hurt myself",
+    ]
+    
+    SAFETY_OVERRIDE_ENABLED: bool = True
+    CRISIS_CONFIDENCE_THRESHOLD: float = 0.5
+
+    # ── Agents ────────────────────────────────────────────────────────────
+    MAX_AGENT_ITERATIONS: int = 5
+    AGENT_TIMEOUT_SECONDS: int = 30
+
+    # ── CORS ──────────────────────────────────────────────────────────────
+    CORS_ORIGINS: str = "http://localhost:8501,http://127.0.0.1:8501"
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────
+    RATE_LIMIT_PER_MINUTE: int = 60
+
+
+# Singleton instance
 settings = Settings()
