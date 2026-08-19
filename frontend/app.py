@@ -922,51 +922,157 @@ def render_sidebar(backend_health: dict) -> Dict[str, object]:
     groq_key = get_secret("GROQ_API_KEY")
 
     with st.sidebar:
-        st.markdown("### ⚙️ System")
+        # ═══ SYSTEM STATUS ══════════════════════════════════════════════
+        st.markdown(
+            "<div style='color:#94a3b8; font-size:11px; font-weight:800; "
+            "text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;'>"
+            "⚙️ System Status</div>",
+            unsafe_allow_html=True,
+        )
 
         if backend_health["reachable"]:
-            st.success(f"✅ Backend v{backend_health['version']}")
-            st.caption(f"`{BACKEND_URL}`")
+            st.markdown(
+                f"""
+                <div style="background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+                            padding: 10px 12px; border-radius: 8px; margin-bottom: 6px;">
+                    <div style="color: white; font-weight: 700; font-size: 13px;">
+                        ✅ Backend Online
+                    </div>
+                    <div style="color: #a7f3d0; font-size: 10px; margin-top: 2px;
+                                font-family: monospace;">
+                        v{backend_health['version']} · {BACKEND_URL.replace('http://', '')}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             if backend_health["models_loaded"]:
-                st.caption("🧠 ML models loaded")
-            else:
-                st.warning("⚠️ Models not fully loaded")
+                st.caption("🧠 All ML models loaded")
         else:
             st.error("❌ Backend offline")
             st.caption(backend_health.get("error", ""))
-            st.code(
-                "python -m uvicorn backend.main:app --reload --port 8000",
-                language="bash",
+            with st.expander("How to start"):
+                st.code(
+                    "python -m uvicorn backend.main:app --reload --port 8000",
+                    language="bash",
+                )
+
+        st.markdown("---")
+
+        # ═══ AGENTS ═════════════════════════════════════════════════════
+        st.markdown(
+            "<div style='color:#94a3b8; font-size:11px; font-weight:800; "
+            "text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;'>"
+            "🤖 Active Agents</div>",
+            unsafe_allow_html=True,
+        )
+
+        agents = [
+            ("🧠", "ClassificationAgent", "DistilRoBERTa"),
+            ("🛡️", "CrisisAgent", "Keyword + confidence"),
+            ("📚", "RAGAgent", "ChromaDB + MiniLM"),
+            ("🔍", "Explainer", "Lexicon attribution"),
+        ]
+        for emoji, name, tech in agents:
+            st.markdown(
+                f"""
+                <div style="padding: 5px 8px; margin-bottom: 4px; background: #1a1f2e;
+                            border-radius: 6px; border-left: 2px solid #10b981;">
+                    <div style="color: white; font-weight: 600; font-size: 12px;">
+                        {emoji} {name}
+                    </div>
+                    <div style="color: #64748b; font-size: 10px; margin-top: 2px;">
+                        {tech}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         st.markdown("---")
-        st.markdown("### 🤖 Agents")
-        st.caption("• Classification (DistilRoBERTa)")
-        st.caption("• Crisis Detection")
-        st.caption("• RAG (ChromaDB)")
-        st.caption("• Explainer (Lexicon)")
+
+        # ═══ LLM ════════════════════════════════════════════════════════
+        st.markdown(
+            "<div style='color:#94a3b8; font-size:11px; font-weight:800; "
+            "text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;'>"
+            "✨ LLM Provider</div>",
+            unsafe_allow_html=True,
+        )
+
+        groq_status_color = "#10b981" if (groq_key and GROQ_AVAILABLE) else "#f59e0b"
+        groq_status_text = "Connected" if (groq_key and GROQ_AVAILABLE) else "Not configured"
+
+        st.markdown(
+            f"""
+            <div style="padding: 10px 12px; background: #1a1f2e; border-radius: 8px;
+                        border-left: 3px solid {groq_status_color};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: white; font-weight: 700; font-size: 12px;">Groq</span>
+                    <span style="color: {groq_status_color}; font-size: 10px; font-weight: 800;
+                                text-transform: uppercase;">● {groq_status_text}</span>
+                </div>
+                <div style="color: #64748b; font-family: monospace; font-size: 10px;
+                            margin-top: 4px;">
+                    {GROQ_CHAT_MODEL}
+                </div>
+                <div style="color: #64748b; font-family: monospace; font-size: 10px;
+                            margin-top: 2px;">
+                    Key: {mask_key(groq_key)}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         st.markdown("---")
-        st.markdown("### 🔑 Groq Status")
-        st.write(f"**Key:** `{mask_key(groq_key)}`")
-        st.write(f"**SDK:** `{'OK' if GROQ_AVAILABLE else 'MISSING'}`")
 
-        st.markdown("---")
-        st.markdown("### 🧠 LLM Model")
-        st.code(GROQ_CHAT_MODEL, language="text")
+        # ═══ DISPLAY OPTIONS ═══════════════════════════════════════════
+        st.markdown(
+            "<div style='color:#94a3b8; font-size:11px; font-weight:800; "
+            "text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;'>"
+            "🎛️ Display Options</div>",
+            unsafe_allow_html=True,
+        )
 
-        st.markdown("---")
-        st.markdown("### 🎛️ Display Options")
         show_explanations = st.toggle("Token explanations", value=True)
         show_scores = st.toggle("All emotion scores", value=True)
         show_safety = st.toggle("Safety override info", value=True)
-        show_llm = st.toggle("AI supportive response (Groq)", value=True)
+        show_llm = st.toggle("AI supportive response", value=True)
         show_agent_trace = st.toggle("Agent execution trace", value=False)
         show_raw = st.toggle("Raw API response", value=False)
 
         st.markdown("---")
-        st.caption(f"**Session:** `{get_session_id()}`")
-        st.warning("⚠️ Research tool only. In crisis? Call **988** (US).")
+
+        # ═══ FOOTER ═════════════════════════════════════════════════════
+        st.markdown(
+            f"""
+            <div style="padding: 8px 10px; background: #0f172a; border-radius: 6px;
+                        margin-bottom: 8px;">
+                <div style="color: #64748b; font-size: 10px; text-transform: uppercase;
+                            letter-spacing: 0.5px; font-weight: 700;">Session</div>
+                <div style="color: #94a3b8; font-family: monospace; font-size: 10px;
+                            margin-top: 2px;">{get_session_id()}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+            <div style="background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+                        padding: 10px 12px; border-radius: 8px;">
+                <div style="color: #fcd34d; font-weight: 700; font-size: 11px;
+                            margin-bottom: 4px;">
+                    ⚠️ Research Tool Only
+                </div>
+                <div style="color: #fde68a; font-size: 10px; line-height: 1.4;">
+                    Not a substitute for professional mental health care.
+                    In crisis? Call <strong>988</strong> (US).
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     return {
         "show_explanations": show_explanations,
