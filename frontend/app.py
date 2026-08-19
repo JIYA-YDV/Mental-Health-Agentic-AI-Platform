@@ -1108,19 +1108,118 @@ def render_input_section() -> Tuple[str, bool]:
 
 
 def render_welcome_placeholder():
+    """Rich welcome state shown before any analysis."""
     st.markdown(
         """
-        <div class="welcome-card">
-            <div style="font-size: 52px; margin-bottom: 10px;">🧠</div>
-            <h3 style="color: white; margin: 0;">Ready to Analyze</h3>
-            <p style="color: #94a3b8; margin-top: 8px; font-size: 14px;">
-                Multi-Agent Orchestration • ChromaDB RAG • SHAP Explainability • Groq LLM
+        <div style="
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 20px;
+            padding: 40px 32px;
+            text-align: center;
+            border: 1px solid #334155;
+            margin-top: 24px;
+            box-shadow: 0 4px 30px rgba(99, 102, 241, 0.08);
+        ">
+            <div style="font-size: 64px; margin-bottom: 16px;">🧠✨</div>
+            <h2 style="
+                color: white;
+                margin: 0 0 8px 0;
+                font-size: 24px;
+                font-weight: 800;
+                background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            ">Ready to Analyze</h2>
+            <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px; max-width: 480px; margin-left: auto; margin-right: auto;">
+                Share what's on your mind and our multi-agent system will provide
+                emotion detection, personalized recommendations, and AI-powered support.
             </p>
+
+            <div style="
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                flex-wrap: wrap;
+                margin-top: 20px;
+            ">
+                <div style="
+                    background: rgba(99, 102, 241, 0.10);
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(99, 102, 241, 0.30);
+                    min-width: 160px;
+                ">
+                    <div style="font-size: 24px; margin-bottom: 4px;">🎯</div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">
+                        Fine-tuned NLP
+                    </div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
+                        DistilRoBERTa · 6 emotions
+                    </div>
+                </div>
+
+                <div style="
+                    background: rgba(16, 185, 129, 0.10);
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(16, 185, 129, 0.30);
+                    min-width: 160px;
+                ">
+                    <div style="font-size: 24px; margin-bottom: 4px;">📚</div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">
+                        Vector RAG
+                    </div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
+                        ChromaDB · Semantic search
+                    </div>
+                </div>
+
+                <div style="
+                    background: rgba(245, 158, 11, 0.10);
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(245, 158, 11, 0.30);
+                    min-width: 160px;
+                ">
+                    <div style="font-size: 24px; margin-bottom: 4px;">🛡️</div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">
+                        Crisis Detection
+                    </div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
+                        Keyword + confidence
+                    </div>
+                </div>
+
+                <div style="
+                    background: rgba(168, 85, 247, 0.10);
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(168, 85, 247, 0.30);
+                    min-width: 160px;
+                ">
+                    <div style="font-size: 24px; margin-bottom: 4px;">✨</div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">
+                        LLM Streaming
+                    </div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
+                        Groq · Real-time tokens
+                    </div>
+                </div>
+            </div>
+
+            <div style="
+                margin-top: 28px;
+                padding-top: 20px;
+                border-top: 1px dashed #334155;
+                color: #64748b;
+                font-size: 11px;
+            ">
+                💡 Try one of the examples above, or type your own thoughts below
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
 
 # ══════════════════════════════════════════════════════════════════════
 # UI — MULTI-STAGE ANALYSIS PROGRESS
