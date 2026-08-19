@@ -111,13 +111,170 @@ section[data-testid="stSidebar"] { width: 280px !important; background: linear-g
 
 .welcome-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
                 border-radius: 16px; padding: 32px; text-align: center; border: 1px solid #334155; margin-top: 20px; }
+/* ═════════════════════════════════════════════════════════════════
+   RECOMMENDATIONS — Search-engine-style ranked results
+   ═════════════════════════════════════════════════════════════════ */
+.rec-search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #0f172a;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #1e293b;
+}
 
-.rec-card { background: linear-gradient(135deg, #1e2130 0%, #252838 100%);
-            border-radius: 12px; padding: 16px; margin-bottom: 12px;
-            border-left: 4px solid #6366f1; }
-.rec-title { color: white; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
-.rec-meta { color: #94a3b8; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
-.rec-content { color: #cbd5e1; font-size: 13px; line-height: 1.55; }
+.rec-search-title {
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rec-search-count {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+.rec-card {
+    background: linear-gradient(135deg, #1e2130 0%, #252838 100%);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border-left: 4px solid #6366f1;
+    transition: all 0.25s ease;
+    position: relative;
+}
+
+.rec-card:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+}
+
+.rec-card-top {
+    border-left-color: #10b981;
+    background: linear-gradient(135deg, #1e2130 0%, #1e3a2e 100%);
+}
+
+.rec-card-fallback {
+    border-left-color: #f59e0b;
+    background: linear-gradient(135deg, #1e2130 0%, #2a2418 100%);
+}
+
+.rec-rank-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.rec-rank-top {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.rec-rank-related {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+}
+
+.rec-rank-fallback {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.rec-title-new {
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    margin: 4px 0 10px 0;
+    line-height: 1.3;
+}
+
+.rec-relevance-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+.rec-relevance-label {
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    min-width: 70px;
+}
+
+.rec-relevance-bar {
+    flex: 1;
+    height: 6px;
+    background: #0f172a;
+    border-radius: 3px;
+    overflow: hidden;
+    max-width: 280px;
+}
+
+.rec-relevance-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
+.rec-relevance-fill-top {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.rec-relevance-fill-mid {
+    background: linear-gradient(90deg, #6366f1 0%, #a78bfa 100%);
+}
+
+.rec-relevance-fill-low {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.rec-relevance-pct {
+    color: #e2e8f0;
+    font-weight: 800;
+    min-width: 45px;
+    text-align: right;
+}
+
+.rec-tags-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #1e293b;
+    flex-wrap: wrap;
+}
+
+.rec-tag {
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.rec-content-new {
+    color: #cbd5e1;
+    font-size: 13px;
+    line-height: 1.6;
+    padding-top: 4px;
+}
 
 .agent-trace { background: #0f172a; border-radius: 10px; padding: 12px 16px;
                margin: 8px 0; border-left: 3px solid #10b981; color: #6ee7b7;
