@@ -312,28 +312,161 @@ def render_llm_section(user_text: str, result: dict):
 # UI — HEADER
 # ══════════════════════════════════════════════════════════════════════
 def render_header(backend_health: dict):
+    """Portfolio-grade header with branding, links, and 'How it works' reveal."""
     groq_key = get_secret("GROQ_API_KEY")
-    pills = []
 
+    # ── Status pills (unchanged logic, refined visuals) ────────────────
+    pills = []
     if backend_health["reachable"]:
         pills.append('<span class="pill pill-live">● Backend Live</span>')
     else:
         pills.append('<span class="pill pill-err">● Backend OFFLINE</span>')
-
     pills.append('<span class="pill pill-info">Multi-Agent + RAG</span>')
-
     if groq_key and GROQ_AVAILABLE:
         pills.append('<span class="pill pill-llm">✨ Groq Enabled</span>')
     elif not groq_key:
         pills.append('<span class="pill pill-off">No GROQ_API_KEY</span>')
 
+    # ── Two-column header ──────────────────────────────────────────────
     c1, c2 = st.columns([3, 2])
-    with c1:
-        st.markdown("## 💙 Mental Health AI Platform")
-        st.caption("Agentic backend (FastAPI) + ChromaDB RAG + SHAP explainability + Groq LLM")
-    with c2:
-        st.markdown("".join(pills), unsafe_allow_html=True)
 
+    with c1:
+        st.markdown(
+            """
+            <div style="margin-bottom: 4px;">
+                <h1 style="
+                    margin: 0;
+                    font-size: 32px;
+                    font-weight: 900;
+                    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    letter-spacing: -0.5px;
+                ">
+                    💙 Mental Health AI Platform
+                </h1>
+                <p style="
+                    color: #94a3b8;
+                    font-size: 14px;
+                    margin: 6px 0 0 0;
+                    font-weight: 500;
+                ">
+                    Multi-agent AI for compassionate emotional support · Fine-tuned NLP · Vector RAG · Explainable · Real-time LLM
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with c2:
+        st.markdown(
+            f"""
+            <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:4px;">
+                {''.join(pills)}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ── Attribution + links row (portfolio essentials!) ────────────────
+    st.markdown(
+        """
+        <div style="
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-top: 10px;
+            padding: 8px 0;
+            border-top: 1px solid #1e2130;
+            border-bottom: 1px solid #1e2130;
+            font-size: 12px;
+            color: #94a3b8;
+        ">
+            <span style="color: #cbd5e1; font-weight: 600;">
+                👩‍💻 Built by <a href="https://github.com/JIYA-YDV"
+                target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: 700;">Jiya Yadav</a>
+            </span>
+            <span style="color: #475569;">·</span>
+            <a href="https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform"
+               target="_blank" style="color: #94a3b8; text-decoration: none;">
+                ⭐ GitHub Repo
+            </a>
+            <span style="color: #475569;">·</span>
+            <a href="https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform"
+               target="_blank" style="color: #94a3b8; text-decoration: none;">
+                🤗 Live Demo (HF Space)
+            </a>
+            <span style="color: #475569;">·</span>
+            <a href="https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion"
+               target="_blank" style="color: #94a3b8; text-decoration: none;">
+                🧠 Fine-tuned Model
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ── "How it works" expandable section (portfolio killer feature!) ──
+    with st.expander("📄 How it works — Architecture Overview", expanded=False):
+        col_a, col_b = st.columns([1, 1])
+
+        with col_a:
+            st.markdown(
+                """
+                #### 🧠 Multi-Agent Pipeline
+
+                ```
+                User Input
+                    ↓
+                ┌───────────────────────┐
+                │ Orchestrator          │
+                └───────────────────────┘
+                    ↓
+                ┌───────────────────────┐
+                │ 1. ClassificationAgent│ → DistilRoBERTa
+                └───────────────────────┘
+                    ↓
+                ┌───────────────────────┐
+                │ 2. CrisisAgent  ⚡    │ (parallel)
+                │ 3. RAGAgent     ⚡    │ → ChromaDB
+                │ 4. Explainer   ⚡    │ → Lexicon
+                └───────────────────────┘
+                    ↓
+                Aggregated Response
+                    ↓
+                Groq LLM (streaming)
+                ```
+                """
+            )
+
+        with col_b:
+            st.markdown(
+                """
+                #### 🔧 Stack
+
+                - **Backend:** FastAPI + async orchestration
+                - **NLP:** DistilRoBERTa (fine-tuned, HuggingFace)
+                - **Vector DB:** ChromaDB with cosine similarity
+                - **Embeddings:** all-MiniLM-L6-v2
+                - **LLM:** Groq (`groq/compound-mini`, streaming)
+                - **Explainability:** Lexicon token attribution
+                - **Monitoring:** Prometheus + structlog
+                - **UI:** Streamlit with custom CSS
+
+                #### 🛡️ Safety Features
+
+                - Crisis keyword + confidence detection
+                - Automatic override to safety-first messaging
+                - 988 / 741741 / 911 resource surfacing
+                - Never diagnoses or replaces professional care
+                """
+            )
+
+        st.info(
+            "💡 **This is a research prototype**, not a clinical tool. "
+            "For real mental health support, please reach out to qualified professionals."
+        )
 
 # ══════════════════════════════════════════════════════════════════════
 # UI — SIDEBAR
@@ -364,7 +497,7 @@ def render_sidebar(backend_health: dict) -> Dict[str, object]:
         st.caption("• Classification (DistilRoBERTa)")
         st.caption("• Crisis Detection")
         st.caption("• RAG (ChromaDB)")
-        st.caption("• Explainer (SHAP)")
+        st.caption("• Explainer (Lexicon)")
 
         st.markdown("---")
         st.markdown("### 🔑 Groq Status")
@@ -377,7 +510,7 @@ def render_sidebar(backend_health: dict) -> Dict[str, object]:
 
         st.markdown("---")
         st.markdown("### 🎛️ Display Options")
-        show_explanations = st.toggle("SHAP token explanations", value=True)
+        show_explanations = st.toggle("Token explanations", value=True)
         show_scores = st.toggle("All emotion scores", value=True)
         show_safety = st.toggle("Safety override info", value=True)
         show_llm = st.toggle("AI supportive response (Groq)", value=True)
@@ -710,7 +843,7 @@ def render_results(result: dict, opts: dict, user_text: str):
 # MAIN
 # ══════════════════════════════════════════════════════════════════════
 def main():
-    # Health check up front (also drives header pill + sidebar)
+    # Health check up front
     backend_health = check_health()
 
     render_header(backend_health)
