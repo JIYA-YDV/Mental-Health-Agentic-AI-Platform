@@ -436,6 +436,139 @@ section[data-testid="stSidebar"] { width: 280px !important; background: linear-g
     font-size: 18px;
     margin: -4px 0;
 }
+
+/* ═════════════════════════════════════════════════════════════════
+   EXPLAINABILITY — Token highlighting + contribution bars
+   ═════════════════════════════════════════════════════════════════ */
+.exp-container {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 10px 0;
+    border: 1px solid #1e293b;
+}
+
+.exp-section-title {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.exp-highlighted-text {
+    background: #1e293b;
+    padding: 14px 16px;
+    border-radius: 10px;
+    line-height: 2.2;
+    font-size: 15px;
+    color: #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.exp-token-highlight {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    margin: 0 2px;
+    display: inline-block;
+    position: relative;
+    cursor: help;
+}
+
+.exp-token-strong {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    border-bottom: 2px solid #ef4444;
+}
+
+.exp-token-medium {
+    background: rgba(245, 158, 11, 0.25);
+    color: #fcd34d;
+    border-bottom: 2px solid #f59e0b;
+}
+
+.exp-token-mild {
+    background: rgba(59, 130, 246, 0.20);
+    color: #93c5fd;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.exp-token-positive {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+    border-bottom: 2px solid #10b981;
+}
+
+.exp-token-weight {
+    display: inline-block;
+    background: #0f172a;
+    color: #64748b;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 4px;
+    margin-left: 3px;
+    vertical-align: super;
+    font-family: 'Courier New', monospace;
+}
+
+.exp-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.exp-bar-emoji {
+    width: 22px;
+    text-align: center;
+}
+
+.exp-bar-word {
+    color: #cbd5e1;
+    min-width: 110px;
+    font-weight: 700;
+}
+
+.exp-bar-track {
+    flex: 1;
+    height: 8px;
+    background: #1e293b;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 320px;
+}
+
+.exp-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.exp-bar-weight {
+    color: #e2e8f0;
+    font-weight: 800;
+    min-width: 50px;
+    text-align: right;
+}
+
+.exp-method-note {
+    color: #64748b;
+    font-size: 11px;
+    padding: 8px 12px;
+    background: #0a1120;
+    border-radius: 8px;
+    margin-top: 14px;
+    border-left: 2px solid #6366f1;
+    font-style: italic;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -924,7 +1057,58 @@ def analyze_with_progress(user_text: str, include_explanations: bool) -> dict:
 
     return result
 
+def highlight_tokens_in_text(text: str, explanations: list) -> str:
+    """
+    Replace matched tokens in the original text with styled HTML spans.
+    Case-insensitive, preserves original casing.
+    """
+    if not explanations:
+        return text
 
+    # Sort tokens by length (longest first) so multi-word phrases match first
+    sorted_tokens = sorted(
+        explanations,
+        key=lambda x: len(x.get("word", "")),
+        reverse=True,
+    )
+
+    result = text
+    # Track already-replaced positions to avoid double-highlighting
+    for tok in sorted_tokens:
+        word = tok.get("word", "").strip()
+        if not word:
+            continue
+
+        weight = abs(float(tok.get("weight", 0.0)))
+        influence = tok.get("influence", "positive")
+
+        # Choose highlight class by strength + influence
+        if influence == "positive" and weight >= 0.85:
+            css_class = "exp-token-positive"
+        elif weight >= 0.85:
+            css_class = "exp-token-strong"
+        elif weight >= 0.55:
+            css_class = "exp-token-medium"
+        else:
+            css_class = "exp-token-mild"
+
+        # Case-insensitive replace, preserving original case
+        import re
+        pattern = re.compile(rf"\b({re.escape(word)})\b", re.IGNORECASE)
+
+        def replace_fn(match):
+            original = match.group(1)
+            return (
+                f'<span class="exp-token-highlight {css_class}">'
+                f'{original}'
+                f'<span class="exp-token-weight">{weight:.2f}</span>'
+                f'</span>'
+            )
+
+        result = pattern.sub(replace_fn, result, count=1)
+
+    return result
+    
 # ══════════════════════════════════════════════════════════════════════
 # UI — RESULTS
 # ══════════════════════════════════════════════════════════════════════
@@ -1061,7 +1245,6 @@ def render_results(result: dict, opts: dict, user_text: str):
             st.caption("Enable 'All emotion scores' in sidebar.")
 
     # ── TAB: Recommendations (RICH CARDS from backend RAG!) ───────────
-        # ── TAB: Recommendations (RICH CARDS from backend RAG!) ───────────
     with tabs[1]:
         recs = result.get("recommendations", [])
         used_fallback = result.get("_used_fallback_recommendations", False)
@@ -1100,36 +1283,94 @@ def render_results(result: dict, opts: dict, user_text: str):
         else:
             st.caption("No recommendations available for this input.")
 
-    # ── TAB: Explainability (SHAP) ─────────────────────────────────────
+        # ── TAB: Explainability (token highlighting + contribution bars) ──
     with tabs[2]:
         if opts["show_explanations"]:
             summary = result.get("explanation_summary")
+            exps = result.get("explanations", [])
+
+            # Summary (from backend explainer)
             if summary:
                 st.info(f"💬 {summary}")
 
-            exps = result.get("explanations", [])
             if exps:
-                st.caption(f"Influential tokens ({len(exps)}):")
-                cols = st.columns(4)
-                for i, tok in enumerate(exps[:16]):
+                # ─── Section 1: Highlighted input text ─────────────────
+                highlighted = highlight_tokens_in_text(user_text, exps)
+
+                st.markdown(
+                    f"""
+                    <div class="exp-container">
+                        <div class="exp-section-title">📝 Highlighted Input</div>
+                        <div class="exp-highlighted-text">"{highlighted}"</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                # ─── Section 2: Contribution breakdown bars ────────────
+                st.markdown(
+                    '<div class="exp-section-title" style="margin-top:16px;">'
+                    '📊 Contribution Breakdown</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Sort by absolute weight descending
+                sorted_exps = sorted(
+                    exps,
+                    key=lambda x: abs(float(x.get("weight", 0.0))),
+                    reverse=True,
+                )
+
+                for tok in sorted_exps[:10]:
                     word = tok.get("word", "")
                     weight = float(tok.get("weight", 0.0))
-                    infl = tok.get("influence", "positive")
-                    emoji, color = ("🔴", "#ef4444") if infl == "negative" else ("🟢", "#10b981")
-                    with cols[i % 4]:
-                        st.markdown(
-                            f"""
-                            <div style="background:#1e2130;padding:10px;border-radius:8px;border-left:3px solid {color};margin-bottom:8px;">
-                                <div style="font-weight:700;color:white;">{emoji} {word}</div>
-                                <div style="font-size:11px;color:#94a3b8;">Weight: {weight:+.2f}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                    abs_weight = abs(weight)
+                    influence = tok.get("influence", "positive")
+
+                    if influence == "positive" and abs_weight >= 0.85:
+                        emoji = "🟢"
+                        fill_color = "linear-gradient(90deg, #10b981, #34d399)"
+                    elif abs_weight >= 0.85:
+                        emoji = "🔴"
+                        fill_color = "linear-gradient(90deg, #ef4444, #f87171)"
+                    elif abs_weight >= 0.55:
+                        emoji = "🟠"
+                        fill_color = "linear-gradient(90deg, #f59e0b, #fbbf24)"
+                    else:
+                        emoji = "🔵"
+                        fill_color = "linear-gradient(90deg, #3b82f6, #60a5fa)"
+
+                    bar_pct = min(abs_weight * 100, 100)
+
+                    st.markdown(
+                        f"""
+                        <div class="exp-bar-row">
+                            <span class="exp-bar-emoji">{emoji}</span>
+                            <span class="exp-bar-word">{word}</span>
+                            <span class="exp-bar-track">
+                                <span class="exp-bar-fill" style="width:{bar_pct}%; background:{fill_color};"></span>
+                            </span>
+                            <span class="exp-bar-weight">{weight:+.2f}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                # ─── Method disclosure ─────────────────────────────────
+                st.markdown(
+                    """
+                    <div class="exp-method-note">
+                        ℹ️ Method: Lexicon-based token attribution.
+                        Fast, deterministic scoring across 8 emotion categories.
+                        Real SHAP integration planned for Phase 5.
+                    </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
             else:
-                st.caption("Enable 'Include explanations' when analyzing to see SHAP output.")
+                st.caption("No influential tokens detected for this input.")
         else:
-            st.caption("Enable 'SHAP token explanations' in sidebar.")
+            st.caption("Enable 'Token explanations' in sidebar.")
 
     # ── TAB: Agent Trace (rich visualization) ─────────────────────────
     tab_idx = 3
