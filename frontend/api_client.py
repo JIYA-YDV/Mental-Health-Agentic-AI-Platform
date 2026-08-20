@@ -94,6 +94,7 @@ def analyze(
     text: str,
     include_explanations: bool = True,
     session_id: Optional[str] = None,
+    explainer_method: str = "lexicon",  # ← NEW PARAM
 ) -> Dict[str, Any]:
     """
     Call POST /classify on the backend.
@@ -121,6 +122,7 @@ def analyze(
     payload = {
         "text": text.strip(),
         "include_explanations": include_explanations,
+        "explainer_method": explainer_method,  # ← NEW
         "session_id": session_id,
     }
 

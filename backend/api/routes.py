@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
+from backend.explainability.hybrid_explainer import hybrid_explainer
 
 from backend.agents.orchestrator import AgentOrchestrator
 from backend.api.schemas import (
@@ -83,17 +84,20 @@ async def classify_text(
         # ── Optional token-level explanations ─────────────────────────
         explanations = None
         explanation_summary = None
+        explainer_method_used = None
 
         if request.include_explanations:
-            explanation_result = explainer.explain(
+            explanation_result = hybrid_explainer.explain(
                 text=request.text,
                 primary_emotion=result["emotion"],
+                method=request.explainer_method or "lexicon",
             )
             explanations = [
                 ExplanationToken(**tok)
                 for tok in explanation_result.get("tokens", [])
             ]
             explanation_summary = explanation_result.get("summary")
+            explainer_method_used = explanation_result.get("method")
 
         # ── Record Prometheus / structlog metrics ─────────────────────
         record_request(
@@ -119,6 +123,7 @@ async def classify_text(
             crisis_assessment=CrisisAssessment(**result["crisis_assessment"]),
             explanations=explanations,
             explanation_summary=explanation_summary,
+            explainer_method=explainer_method_used,  # ← NEW
             session_id=result.get("session_id"),
             processing_time_ms=result["processing_time_ms"],
             model_version=settings.APP_VERSION,

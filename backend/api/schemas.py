@@ -23,6 +23,10 @@ class ClassificationRequest(BaseModel):
         default=False,
         description="Include token-level attribution in response.",
     )
+    explainer_method: Optional[str] = Field(  # ← NEW FIELD
+        default="lexicon",
+        description="Explanation method: 'lexicon' (fast) or 'shap' (authentic).",
+    )
     session_id: Optional[str] = Field(
         default=None,
         max_length=128,
@@ -36,7 +40,6 @@ class ClassificationRequest(BaseModel):
         if not cleaned:
             raise ValueError("Text cannot be empty or whitespace only.")
         return cleaned
-
 
 # ── Sub-schemas ────────────────────────────────────────────────────────
 class PredictionScore(BaseModel):
@@ -86,8 +89,6 @@ class CrisisAssessment(BaseModel):
 class ClassificationResponse(BaseModel):
     """Full multi-agent analysis response."""
 
-    # Allow `model_version` field without triggering Pydantic's
-    # "model_" protected-namespace warning.
     model_config = ConfigDict(protected_namespaces=())
 
     emotion: str
@@ -103,12 +104,15 @@ class ClassificationResponse(BaseModel):
         default=None,
         description="Human-readable explanation paragraph.",
     )
+    explainer_method: Optional[str] = Field(  # ← NEW FIELD
+        default=None,
+        description="Which explanation method was used (lexicon or shap_gradient).",
+    )
 
     session_id: Optional[str] = None
     processing_time_ms: float = Field(ge=0.0)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     model_version: str = "1.0.1"
-
 
 # ── Health / Errors ────────────────────────────────────────────────────
 class HealthResponse(BaseModel):

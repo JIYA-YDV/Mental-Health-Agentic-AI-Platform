@@ -13,6 +13,8 @@ Author: Jiya Yadav (@JIYA-YDV)
 import os
 import time
 from typing import Dict, Tuple
+import textwrap
+import streamlit.components.v1 as components
 
 import streamlit as st
 
@@ -1034,14 +1036,56 @@ def render_sidebar(backend_health: dict) -> Dict[str, object]:
             unsafe_allow_html=True,
         )
 
-        show_explanations = st.toggle("Token explanations", value=True)
-        show_scores = st.toggle("All emotion scores", value=True)
-        show_safety = st.toggle("Safety override info", value=True)
-        show_llm = st.toggle("AI supportive response", value=True)
-        show_agent_trace = st.toggle("Agent execution trace", value=False)
-        show_raw = st.toggle("Raw API response", value=False)
+        show_explanations = st.toggle(
+            "Token explanations",
+            value=True,
+            key="toggle_explanations",
+        )
 
-        st.markdown("---")
+        # Explainer method radio (only when explanations enabled)
+        if show_explanations:
+            explainer_method = st.radio(
+                "Explanation method",
+                options=["lexicon", "shap"],
+                index=0,
+                format_func=lambda x: {
+                    "lexicon": "⚡ Lexicon (fast, ~50ms)",
+                    "shap": "🔬 SHAP (authentic, ~2s)",
+                }[x],
+                help=(
+                    "Lexicon: matches curated emotion words (fast).\n\n"
+                    "SHAP: real model-attention attributions (slower)."
+                ),
+                key="radio_explainer_method",
+            )
+        else:
+            explainer_method = "lexicon"
+
+        show_scores = st.toggle(
+            "All emotion scores",
+            value=True,
+            key="toggle_scores",
+        )
+        show_safety = st.toggle(
+            "Safety override info",
+            value=True,
+            key="toggle_safety",
+        )
+        show_llm = st.toggle(
+            "AI supportive response",
+            value=True,
+            key="toggle_llm",
+        )
+        show_agent_trace = st.toggle(
+            "Agent execution trace",
+            value=False,
+            key="toggle_agent_trace",
+        )
+        show_raw = st.toggle(
+            "Raw API response",
+            value=False,
+            key="toggle_raw",
+        )
 
         # ═══ FOOTER ═════════════════════════════════════════════════════
         st.markdown(
@@ -1076,6 +1120,7 @@ def render_sidebar(backend_health: dict) -> Dict[str, object]:
 
     return {
         "show_explanations": show_explanations,
+        "explainer_method": explainer_method,
         "show_scores": show_scores,
         "show_safety": show_safety,
         "show_llm": show_llm,
@@ -1106,19 +1151,17 @@ def render_input_section() -> Tuple[str, bool]:
     )
     return user_text, analyze_clicked
 
-
 def render_welcome_placeholder():
     """Rich welcome state shown before any analysis."""
-    st.markdown(
-        """
+    html_code = """
         <div style="
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border-radius: 20px;
             padding: 40px 32px;
             text-align: center;
             border: 1px solid #334155;
-            margin-top: 24px;
             box-shadow: 0 4px 30px rgba(99, 102, 241, 0.08);
+            font-family: sans-serif;
         ">
             <div style="font-size: 64px; margin-bottom: 16px;">🧠✨</div>
             <h2 style="
@@ -1150,12 +1193,8 @@ def render_welcome_placeholder():
                     min-width: 160px;
                 ">
                     <div style="font-size: 24px; margin-bottom: 4px;">🎯</div>
-                    <div style="color: white; font-weight: 700; font-size: 12px;">
-                        Fine-tuned NLP
-                    </div>
-                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
-                        DistilRoBERTa · 6 emotions
-                    </div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">Fine-tuned NLP</div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">DistilRoBERTa · 6 emotions</div>
                 </div>
 
                 <div style="
@@ -1166,12 +1205,8 @@ def render_welcome_placeholder():
                     min-width: 160px;
                 ">
                     <div style="font-size: 24px; margin-bottom: 4px;">📚</div>
-                    <div style="color: white; font-weight: 700; font-size: 12px;">
-                        Vector RAG
-                    </div>
-                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
-                        ChromaDB · Semantic search
-                    </div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">Vector RAG</div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">ChromaDB · Semantic search</div>
                 </div>
 
                 <div style="
@@ -1182,12 +1217,8 @@ def render_welcome_placeholder():
                     min-width: 160px;
                 ">
                     <div style="font-size: 24px; margin-bottom: 4px;">🛡️</div>
-                    <div style="color: white; font-weight: 700; font-size: 12px;">
-                        Crisis Detection
-                    </div>
-                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
-                        Keyword + confidence
-                    </div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">Crisis Detection</div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Keyword + confidence</div>
                 </div>
 
                 <div style="
@@ -1198,12 +1229,8 @@ def render_welcome_placeholder():
                     min-width: 160px;
                 ">
                     <div style="font-size: 24px; margin-bottom: 4px;">✨</div>
-                    <div style="color: white; font-weight: 700; font-size: 12px;">
-                        LLM Streaming
-                    </div>
-                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">
-                        Groq · Real-time tokens
-                    </div>
+                    <div style="color: white; font-weight: 700; font-size: 12px;">LLM Streaming</div>
+                    <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">Groq · Real-time tokens</div>
                 </div>
             </div>
 
@@ -1217,25 +1244,28 @@ def render_welcome_placeholder():
                 💡 Try one of the examples above, or type your own thoughts below
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    """
+    components.html(html_code, height=360, scrolling=False)
 
 # ══════════════════════════════════════════════════════════════════════
 # UI — MULTI-STAGE ANALYSIS PROGRESS
 # ══════════════════════════════════════════════════════════════════════
-def analyze_with_progress(user_text: str, include_explanations: bool) -> dict:
-    """
-    Call backend with faked multi-stage progress feedback.
-    Reveals the agentic architecture to the user visually.
-    """
+def analyze_with_progress(
+    user_text: str,
+    include_explanations: bool,
+    explainer_method: str = "lexicon",  # ← NEW
+) -> dict:
+    """Call backend with faked multi-stage progress feedback."""
     stages = [
         ("🧠 Classifying emotion (DistilRoBERTa)", 0.15),
         ("🛡️  Assessing crisis risk", 0.05),
         ("📚 Retrieving from knowledge base (ChromaDB)", 0.10),
     ]
     if include_explanations:
-        stages.append(("🔍 Computing SHAP explanations", 0.30))
+        if explainer_method == "shap":
+            stages.append(("🔬 Computing SHAP attributions (may take ~2s)", 0.50))
+        else:
+            stages.append(("🔍 Computing lexicon attributions", 0.10))
 
     progress_container = st.empty()
     progress_bar = st.progress(0)
@@ -1243,18 +1273,26 @@ def analyze_with_progress(user_text: str, include_explanations: bool) -> dict:
     total_fake_time = sum(s[1] for s in stages)
     elapsed = 0.0
 
-    # Start the actual backend call in the foreground.
-    # We show fake progress up to ~90% while it runs, then jump to 100%.
     for i, (label, dur) in enumerate(stages[:-1]):
-        progress_container.markdown(f'<div class="agent-trace">{label}...</div>', unsafe_allow_html=True)
+        progress_container.markdown(
+            f'<div class="agent-trace">{label}...</div>',
+            unsafe_allow_html=True,
+        )
         time.sleep(dur)
         elapsed += dur
         progress_bar.progress(min(elapsed / (total_fake_time + 0.1), 0.85))
 
-    # Final stage: actual backend call
     final_label = stages[-1][0]
-    progress_container.markdown(f'<div class="agent-trace">{final_label}...</div>', unsafe_allow_html=True)
-    result = analyze(user_text, include_explanations=include_explanations)
+    progress_container.markdown(
+        f'<div class="agent-trace">{final_label}...</div>',
+        unsafe_allow_html=True,
+    )
+
+    result = analyze(
+        user_text,
+        include_explanations=include_explanations,
+        explainer_method=explainer_method,  # ← NEW
+    )
 
     progress_bar.progress(1.0)
     progress_container.empty()
@@ -1560,18 +1598,31 @@ def render_results(result: dict, opts: dict, user_text: str):
                         unsafe_allow_html=True,
                     )
 
-                # ─── Method disclosure ─────────────────────────────────
-                st.markdown(
+                # ─── Method disclosure (dynamic based on method used) ──
+                method_used = result.get("explainer_method", "lexicon_attribution")
+
+                if method_used == "shap_gradient":
+                    method_html = """
+                    <div class="exp-method-note" style="border-left-color: #10b981;">
+                        🔬 <strong>Method:</strong> SHAP gradient attributions.
+                        Real model-attention values computed via SHAP's Partition
+                        explainer over the DistilRoBERTa pipeline. This shows exactly
+                        which tokens the fine-tuned model relied on for its prediction.
+                    </div>
+                    </div>
                     """
+                else:
+                    method_html = """
                     <div class="exp-method-note">
-                        ℹ️ Method: Lexicon-based token attribution.
-                        Fast, deterministic scoring across 8 emotion categories.
-                        Real SHAP integration planned for Phase 5.
+                        ⚡ <strong>Method:</strong> Lexicon-based token attribution.
+                        Fast (~5ms), deterministic scoring across 8 emotion categories
+                        with 200+ curated terms. Toggle to SHAP mode for real
+                        model-attention analysis (slower).
                     </div>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                    """
+
+                st.markdown(method_html, unsafe_allow_html=True)
             else:
                 st.caption("No influential tokens detected for this input.")
         else:
@@ -1760,6 +1811,7 @@ def main():
             result = analyze_with_progress(
                 user_text.strip(),
                 include_explanations=opts["show_explanations"],
+                explainer_method=opts["explainer_method"],
             )
             render_results(result, opts, user_text.strip())
         except RuntimeError as e:
