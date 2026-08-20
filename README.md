@@ -1,552 +1,805 @@
-# 🧠 Mental Health Agentic AI Platform
+# 💙 Mental Health Agentic AI Platform
 
-[![CI](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/JIYA-YDV/Mental-Health-Agentic-AI-Platform/branch/main/graph/badge.svg)](https://codecov.io/gh/JIYA-YDV/Mental-Health-Agentic-AI-Platform)
-[![Tests](https://img.shields.io/badge/tests-59%20passing-brightgreen)](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform/actions)
-[![Coverage](https://img.shields.io/badge/coverage-74.4%25-green)](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28.1-FF4B4B)](https://streamlit.io/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.1.1-EE4C2C)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Macro F1](https://img.shields.io/badge/macro_F1-0.89_(fine--tuned)-brightgreen)](docs/FINE_TUNING.md)
-[![HF Hub](https://img.shields.io/badge/🤗-Model_on_Hub-yellow)](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion)
-[![Crisis Recall](https://img.shields.io/badge/crisis_recall-93%25-brightgreen)](docs/EVALUATION.md)
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-HuggingFace_Space-yellow)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
-[![Deployed](https://img.shields.io/badge/deployed-huggingface_spaces-brightgreen)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
-[![Live Demo](https://img.shields.io/badge/🚀-Live_Demo-yellow)](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Groq](https://img.shields.io/badge/Groq-API-f59e0b?style=for-the-badge)](https://groq.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector_Store-6366f1?style=for-the-badge)](https://www.trychroma.com/)
+[![HuggingFace](https://img.shields.io/badge/HuggingFace-Fine--Tuned-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-🚀 **Fine-tuned DistilRoBERTa** on 16K samples, improving baseline from 0.87 → 0.89 F1 ([model on HF](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion))
-- 🌐 **Deployed to HuggingFace Spaces** — [Live interactive demo](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
+> **End-to-end Agentic AI platform for mental health intelligence** — fine-tuned NLP, multi-agent orchestration, vector RAG, explainable AI, crisis safety guardrails, Prometheus observability, and streaming LLM support.
 
-**Production-grade multi-agent AI platform for mental health intelligence.** Built with Transformer-based NLP, retrieval-augmented generation, async multi-agent orchestration, explainability, structured monitoring, and full CI/CD.
-
-> ⚠️ **DISCLAIMER**: AI research tool — NOT a substitute for professional mental health care. If you are in crisis, call **988** (US) or your local emergency number.
+| | |
+|---|---|
+| **Author** | [Jiya Yadav (@JIYA-YDV)](https://github.com/JIYA-YDV) |
+| **Live Demo (HF Space)** | [YDVJIYA/mental-health-ai-platform](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform) |
+| **Fine-tuned Model** | [YDVJIYA/distilroberta-base-finetuned-emotion](https://huggingface.co/YDVJIYA/distilroberta-base-finetuned-emotion) |
+| **Repository** | [Mental-Health-Agentic-AI-Platform](https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform) |
 
 ---
 
-## ✨ Highlights
+## 📑 Table of Contents
 
-- 🎯 **59 automated tests** with 74.4% code coverage (sub-8s feedback loop)
-- 🤖 **4-agent async pipeline** — Classification → (Crisis + RAG in parallel) → Aggregation
-- 🔍 **DistilRoBERTa emotion classifier** detecting 7 emotions with calibrated confidence
-- 📚 **Semantic RAG** over curated wellness KB with similarity-threshold fallback
-- 🚨 **Crisis detection** layered with confidence + keyword triggers
-- 🔮 **Lexicon-based token attribution** for explainable predictions
-- 📊 **Prometheus metrics** + **structlog** structured JSON logging
-- 🐳 **Docker-ready** with multi-service `docker-compose`
-- ✅ **GitHub Actions CI** running tests + lint on every push
-
----
-
-## 🌐 Live Demo
-
-**Try it now:** [huggingface.co/spaces/YDVJIYA/mental-health-ai-platform](https://huggingface.co/spaces/YDVJIYA/mental-health-ai-platform)
-
-> ⚡ First visit may take 30-60 seconds if the Space is waking from sleep.
-> Once warm, responses are instant.
-
-Deployed with:
-- 🤗 **HuggingFace Spaces** (free tier, 16GB RAM)
-- 🎯 **UptimeRobot** ping monitor (keeps app warm)
-- 🚀 **Streamlit** single-service architecture
-- 🧠 **Fine-tuned DistilRoBERTa** loaded directly from HF Hub
+- [Why This Project](#-why-this-project)
+- [Two Deployment Modes](#-two-deployment-modes)
+- [System Architecture](#-system-architecture)
+- [Multi-Agent Execution Flow](#-multi-agent-execution-flow)
+- [Key Features (Deep Dive)](#-key-features-deep-dive)
+- [Tech Stack](#️-tech-stack)
+- [Repository Structure](#-repository-structure)
+- [Quickstart Guide](#-quickstart-guide)
+- [Configuration Reference](#-configuration-reference)
+- [API Documentation](#-api-documentation)
+- [Frontend Guide](#-frontend-guide)
+- [Observability & Metrics](#-observability--metrics)
+- [Safety & Ethics](#️-safety--ethics)
+- [Performance Snapshot](#-performance-snapshot)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
+- [Roadmap](#-roadmap)
+- [Resume Highlights](#-resume-highlights)
+- [Disclaimer](#️-disclaimer)
+- [License & Credits](#-license--credits)
 
 ---
----
 
-## 📊 Benchmark Results
+## 🎯 Why This Project
 
-Evaluated on the `dair-ai/emotion` Twitter benchmark (1,000 test samples):
+Most mental-health demos stop at “classify emotion → print a template reply.”
 
-| Metric | Score | Grade |
-|--------|-------|-------|
-| **Macro F1** | **0.869** | 🏆 Excellent |
-| **Weighted F1** | **0.916** | 🏆 Excellent |
-| **Accuracy** | **0.914** | 🏆 Excellent |
-| **Crisis Recall** (sadness + fear) | **0.932** | 🏆 Outstanding |
-| **Crisis Precision** (sadness + fear) | **0.930** | 🏆 Outstanding |
-| **Inference Latency** | **31.7 ms/sample** | ⚡ Fast (CPU) |
+This platform is designed as a **systems engineering showcase**:
 
-> Crisis metrics measure how reliably the system detects high-risk emotional states.
-> A 93% recall on crisis signals means fewer than 7 in 100 distress signals are missed.
+| Problem | How this platform addresses it |
+|--------|--------------------------------|
+| Black-box emotion models | Hybrid explainability (lexicon + optional SHAP) |
+| Generic wellness tips | ChromaDB RAG + curated emotion fallbacks |
+| Unsafe generative replies | Crisis agent + LLM bypass on high risk |
+| Single-script demos | Multi-agent FastAPI backend + Streamlit UI |
+| No ops story | Prometheus metrics + structlog + monitoring page |
+| Hard to demo publicly | HuggingFace Space (lightweight) + local full-stack |
 
-Full reproducible methodology, per-class breakdown, confusion matrix, and limitations
-analysis available in **[docs/EVALUATION.md](docs/EVALUATION.md)**.
+**Design principle:** *compassionate UX on the outside, production architecture on the inside.*
 
-**Reproduce:**
-\`\`\`bash
-python -m evaluation.benchmark --samples 1000 --seed 42
-\`\`\`
+## 🧩 Two Deployment Modes
 
-## 🏗️ Architecture
+This repo intentionally ships **two complementary modes**:
+
+### 1) HuggingFace Space — Public Demo
+- Single-file / lightweight Streamlit experience
+- Self-contained emotion model + Groq streaming
+- Instant try-without-setup for recruiters and users
+- Best for: discovery, demos, portfolio link
+
+### 2) Local Full-Stack — Engineering Mode
+- FastAPI multi-agent backend (`backend/`)
+- Streamlit UI wired over HTTP (`frontend/app.py` + `api_client.py`)
+- ChromaDB RAG, Prometheus, structured logging, SHAP/lexicon explainers
+- Best for: architecture interviews, deep technical review
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Streamlit Frontend (Port 8501)                │
-└─────────────────────────────┬────────────────────────────────────┘
-                              │ HTTPS / JSON
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                FastAPI Backend (Port 8000)                       │
-│         /health    /classify    /docs (Swagger UI)               │
-└─────────────────────────────┬────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│               Agent Orchestrator (asyncio.gather)                │
-│                                                                  │
-│   1. ClassificationAgent  (blocking — feeds downstream)          │
-│              │                                                   │
-│              ▼                                                   │
-│   ┌─────────────────────┐    ┌─────────────────────┐             │
-│   │  2. CrisisAgent     │ ║  │  3. RAGAgent        │             │
-│   │  (risk scoring)     │ ║  │  (vector retrieval) │             │
-│   └─────────────────────┘ ║  └─────────────────────┘             │
-│              │            ║              │                       │
-│              └────────────╨──────────────┘                       │
-│                           ▼                                      │
-│   4. WellnessAgent (aggregation + tip generation)                │
-└─────────────────────────────┬────────────────────────────────────┘
-                              │
-                              ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                          Model Layer                             │
-│   DistilRoBERTa  │  MiniLM Embeddings  │  ChromaDB Vector Store  │
-└──────────────────────────────────────────────────────────────────┘
+Public demo (HF)  →  “It works and looks great.”
+Local full-stack  →  “Here’s how it’s engineered.”
 ```
 
-**Why this design?** Crisis assessment and KB retrieval are independent of each other but both depend on classification → ideal for `asyncio.gather()`. Cuts total latency by ~40% vs sequential execution.
+## 🌟 System Architecture
 
----
+```mermaid
+graph TD
+    User([👤 User / Browser]) <-->|HTTP / Port 8501| Streamlit[🎨 Streamlit Frontend]
+    
+    subgraph Frontend Layer
+        Streamlit -->|HTTP Client| APIClient[api_client.py]
+        Streamlit -->|Direct API| GroqLLM[⚡ Groq LLM API\ngroq/compound-mini]
+    end
 
-## 🛠️ Tech Stack
+    APIClient <-->|REST / JSON / Port 8000| FastAPI[🚀 FastAPI Backend]
 
-| Layer | Technology | Why |
-|-------|------------|-----|
-| **Backend** | FastAPI 0.104 | Async-first, auto OpenAPI, Pydantic v2 |
-| **Frontend** | Streamlit 1.28 | Fast dashboards, no JS required |
-| **ML Framework** | PyTorch 2.1 + Transformers 4.35 | Industry-standard HF ecosystem |
-| **Embeddings** | sentence-transformers 2.7 (MiniLM) | 384-dim, 5× faster than BERT |
-| **Vector DB** | ChromaDB 0.4 | Embedded, no separate service |
-| **Validation** | Pydantic v2 | Type-safe schemas, strict validation |
-| **Monitoring** | Prometheus + structlog | Industry-standard observability |
-| **Testing** | pytest 7.4 + pytest-asyncio | 59 tests in <8s |
-| **CI/CD** | GitHub Actions + Codecov | Auto-test on every push |
-| **Linting** | Ruff 0.4 | 10-100× faster than flake8/black |
+    subgraph Backend Core
+        FastAPI -->|Request| Orchestrator[🤖 AgentOrchestrator]
+        
+        subgraph Multi-Agent System
+            Orchestrator -->|Step 1: Sequential| Agent1[🧠 ClassificationAgent]
+            Agent1 --> DistilRoBERTa[(DistilRoBERTa Model)]
+            
+            Orchestrator -->|Step 2: Parallel ⚡| Agent2[🛡️ CrisisAgent]
+            Orchestrator -->|Step 2: Parallel ⚡| Agent3[📚 RAGAgent]
+            Orchestrator -->|Step 3: Optional| Agent4[🔍 HybridExplainer]
+            
+            Agent2 --> SafetyRules[Keyword + Confidence Rules]
+            Agent3 --> ChromaDB[(ChromaDB Vector Store\nall-MiniLM-L6-v2)]
+            Agent4 --> Lexicon[Lexicon & SHAP Attributions]
+        end
+        
+        Orchestrator -->|Aggregated Response| FastAPI
+    end
 
----
+    subgraph Monitoring & Observability
+        FastAPI -->|Record Request| Metrics[📊 Prometheus Metrics\nPort 8001]
+        FastAPI -->|JSON Logs| Structlog[📝 structlog]
+        Streamlit -->|Pulls Metrics| Dashboard[📈 Monitoring Page]
+        Dashboard <-->|Port 8001/metrics| Metrics
+    end
+```
+# High-level request path
+```
+User text
+   │
+   ▼
+Streamlit UI  ──POST /classify──►  FastAPI
+                                   │
+                                   ▼
+                            AgentOrchestrator
+                     ┌─────────────┼─────────────┐
+                     ▼             ▼             ▼
+            Classification   CrisisAgent     RAGAgent
+                 Agent      (parallel)     (parallel)
+                     │             │             │
+                     └─────────────┼─────────────┘
+                                   ▼
+                         Optional HybridExplainer
+                                   │
+                                   ▼
+                         Aggregated JSON response
+                                   │
+                                   ▼
+Streamlit renders cards/tabs  +  Groq streams supportive reply
+```
+# 🤖 Multi-Agent Execution Flow
 
-## 🚀 Quick Start
+# Step 1 — Sequential (required)
 
-### Prerequisites
+ClassificationAgent
 
-- Python **3.10+** (tested on 3.10.11)
-- 8GB+ RAM (transformer models)
+- Model: YDVJIYA/distilroberta-base-finetuned-emotion
+
+- Output: primary emotion, confidence, full score distribution
+
+- Blocks downstream agents until complete (emotion is needed by RAG/crisis logic)
+  
+# Step 2 — Parallel (latency optimized)
+
+CrisisAgent
+
+- Keyword scan over crisis phrases
+
+- Emotion-confidence risk contribution
+
+- Produces: is_crisis, risk_level, risk_score, indicators, resources
+
+RAGAgent
+
+- Embeds query with MiniLM
+
+- Retrieves top-k wellness docs from ChromaDB
+
+- Applies two-tier similarity policy
+
+- Returns structured recommendation objects
+
+# Step 3 — Optional
+
+HybridExplainer
+
+- lexicon (default, ~milliseconds)
+
+- shap (opt-in, slower, model-attention based)
+
+- Returns token weights + human-readable summary
+
+Orchestrator responsibilities
+
+- Coordinate async agent execution (asyncio.gather for parallel stage)
+
+- Aggregate results into a single API response
+
+- Preserve session metadata + processing latency
+
+- Never let one optional component crash the full pipeline (where designed)
+  
+# ✨ Key Features (Deep Dive)
+
+1) Fine-tuned Emotion Intelligence
+   
+- Transformer sequence classification (DistilRoBERTa)
+
+- Multi-label score vector for all emotions
+
+- Confidence-aware downstream risk logic
+
+- Canonical lowercase emotion labels for UI consistency
+(sadness, joy, love, anger, fear, surprise, …)
+
+2) Vector RAG with Smart Fallbacks
+   
+- ChromaDB persistent collection
+
+- Cosine similarity retrieval
+
+- Threshold strategy:
+  
+    - Strict threshold (e.g. 0.40): high-confidence matches preferred
+      
+    - Fallback floor (e.g. 0.25): weak-but-usable matches still allowed
+ 
+    - Below floor: empty RAG result → frontend emotion-curated fallback cards
+      
+- Recommendation payload includes:
+  
+  - title, content, relevance_score, category, source
+  
+3) Safety & Crisis Guardrails
+   
+- Multi-signal detection:
+
+  - Crisis keyword matches
+  - High-confidence distress emotions (e.g. sadness/fear)
+    
+- Risk levels: low | medium | high | critical
+  
+- Immediate resources surfaced (988 / 741741 / 911 / international links)
+
+- UI + backend both enforce crisis-first messaging
+
+- Groq generative response is suppressed on crisis path
+
+4) Explainable AI (Hybrid XAI)
+
+| Mode |	Speed |	What it shows |
+|------|--------|---------------|
+| Lexicon |	Very fast |	Curated emotional terms matched in text |
+| SHAP |	Slower |	Model-attention style token attributions |
+
+ UI shows:
+
+- Highlighted tokens in original text
+  
+- Contribution bars
+
+- Method disclosure (lexicon_attribution vs shap_gradient)
+  
+5) Streaming Supportive LLM Responses
+
+- Provider: Groq
+
+- Model: groq/compound-mini (post-deprecation migration from versatile-class models)
+
+- Streaming tokens into Streamlit chat UI
+
+- Prompt constraints:
+  - short, empathetic, non-diagnostic
+    
+  - one practical suggestion
+    
+  - no medical claims / no therapy replacement language
+    
+6) Production-style Observability
+
+- Prometheus metrics server (:8001)
+
+- Request counters labeled by emotion + risk level
+
+- Latency histogram
+
+- Confidence histogram
+
+- Crisis alert counters
+  
+- Streamlit Monitoring page for live visualization
+  
+# 🛠️ Tech Stack
+
+Backend
+
+| Layer |	Technologies |
+|-------|--------------|
+| API |	FastAPI, Uvicorn, Pydantic v2, pydantic-settings |
+| Agents |	Custom async orchestrator + specialized agents  |
+| NLP |	Transformers, Tokenizers, PyTorch |
+| Embeddings / RAG |	sentence-transformers, ChromaDB |
+| LLM client |	groq SDK (also used from frontend for streaming) |
+| Logging |	structlog |
+| Metrics |	prometheus_client |
+| Config |	python-dotenv + Settings class |
+
+Frontend
+
+| Layer |	Technologies |
+|-------|--------------|
+| UI |	Streamlit multipage app |
+| HTTP |	requests |
+| Styling |	Custom dark-theme CSS |
+| Pages |	Main analyzer + Monitoring dashboard |
+
+Model artifacts
+
+| Artifact |	Source |
+|----------|---------|
+| Emotion classifier |	HuggingFace: YDVJIYA/distilroberta-base-finetuned-emotion |
+| Embeddings |	sentence-transformers/all-MiniLM-L6-v2 |
+| LLM	| Groq-hosted groq/compound-mini |
+
+# 📁 Repository Structure
+```
+Mental-Health-Agentic-AI-Platform/
+├── backend/
+│   ├── main.py                      # FastAPI app, lifespan, CORS
+│   ├── agents/
+│   │   ├── orchestrator.py          # Multi-agent coordinator
+│   │   ├── classification_agent.py
+│   │   ├── crisis_agent.py
+│   │   ├── rag_agent.py
+│   │   ├── wellness_agent.py
+│   │   └── semantic_interpreter.py
+│   ├── api/
+│   │   ├── routes.py                # /health, /classify
+│   │   ├── schemas.py               # Request/response contracts
+│   │   └── middleware.py
+│   ├── config/
+│   │   └── settings.py              # Canonical configuration
+│   ├── models/
+│   │   ├── classifier.py            # DistilRoBERTa wrapper
+│   │   ├── embeddings.py
+│   │   ├── rag_pipeline.py          # ChromaDB retrieval
+│   │   └── llm_responder.py         # Groq helper (backend path)
+│   ├── explainability/
+│   │   ├── explainer.py             # Lexicon attribution
+│   │   ├── shap_explainer.py        # Optional SHAP path
+│   │   └── hybrid_explainer.py      # Method router + fallback
+│   └── monitoring/
+│       ├── logger.py
+│       └── metrics.py               # Prometheus instrumentation
+│
+├── frontend/
+│   ├── app.py                       # Main Streamlit analyzer UI
+│   ├── api_client.py                # Backend HTTP client + normalization
+│   └── pages/
+│       └── 1_Monitoring.py          # Live metrics dashboard
+│
+├── datasets/                        # Data / knowledge assets
+├── evaluation/                      # Evaluation utilities
+├── tests/                           # pytest suite
+├── notebooks/                       # Experiments
+├── deploy/ docker/ docs/            # Deployment & docs assets
+├── .env.example                     # Sample environment variables
+├── requirements.txt
+└── README.md
+```
+
+# 🚀 Quickstart Guide
+
+Prerequisites
+
+- Python 3.11+
+
 - Git
 
-### 1. Clone & Setup
+- Free Groq API key: https://console.groq.com
 
-```bash
+- (Optional) CUDA GPU — CPU works fine
+
+# 1) Clone & install
+
 git clone https://github.com/JIYA-YDV/Mental-Health-Agentic-AI-Platform.git
 cd Mental-Health-Agentic-AI-Platform
 
-python -m venv venv
+python -m venv .venv
 
-# Windows
-venv\Scripts\activate
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 
-# Mac/Linux
-source venv/bin/activate
+# macOS / Linux
+
+source .venv/bin/activate
+
+pip install -r requirements.txt
+
+# 2) Create .env (project root)
+
+# ── Application 
+DEBUG=false
+LOG_LEVEL=INFO
+HOST=0.0.0.0
+PORT=8000
+
+# ── Groq LLM 
+GROQ_API_KEY=gsk_your_actual_key_here
+GROQ_MODEL=groq/compound-mini
+
+# ── Models 
+EMOTION_MODEL=YDVJIYA/distilroberta-base-finetuned-emotion
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+MAX_SEQUENCE_LENGTH=512
+
+# ── RAG 
+CHROMA_PERSIST_DIR=./chroma_db
+TOP_K_RETRIEVAL=3
+SIMILARITY_THRESHOLD=0.4
+
+# ── Explainer 
+EXPLAINER_DISPLAY_THRESHOLD=0.05
+EXPLAINER_MIN_TOKENS=3
+EXPLAINER_MAX_TOKENS=10
+
+# ── Crisis
+
+CRISIS_CONFIDENCE_THRESHOLD=0.75
+
+# ── Monitoring 
+ENABLE_METRICS=true
+METRICS_PORT=8001
+
+# ── Frontend 
+BACKEND_URL=http://localhost:8000
+
+# 3) Run full stack (2 terminals)
+
+Terminal 1 — Backend
+
 ```
-
-### 2. Install Dependencies
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-> 📦 First run downloads ~500MB of model weights (cached afterwards).
-
-### 3. Configure Environment
-
-```bash
-# Windows
-copy .env.example .env
-
-# Mac/Linux
-cp .env.example .env
-```
-
-### 4. Start Backend (Terminal 1)
-
-```bash
+.\.venv\Scripts\Activate.ps1
 python -m uvicorn backend.main:app --reload --port 8000
 ```
+Wait for: Application startup complete.
 
-Expected output:
+# Terminal 2 — Frontend
 
 ```
-INFO:     Uvicorn running on http://0.0.0.0:8000
-INFO:     Application startup complete.
-```
-
-### 5. Start Frontend (Terminal 2)
-
-```bash
+.\.venv\Scripts\Activate.ps1
 streamlit run frontend/app.py
 ```
 
-**Access:**
+# Access points
 
-- 🖥️ UI: http://localhost:8501
-- 🔌 API: http://localhost:8000
-- 📚 Docs: http://localhost:8000/docs
-- 📊 Metrics: http://localhost:8001/metrics
+| Service |	URL |
+|---------|-----|
+| Streamlit UI |	http://localhost:8501 |
+| Monitoring page |	Sidebar → Monitoring (or pages/1_Monitoring.py) |
+| Swagger docs |	http://localhost:8000/docs |
+| Health check |	http://localhost:8000/health |
+| Prometheus metrics |	http://localhost:8001/metrics |
 
----
+# First-run notes
 
-## 🧪 Testing
+- Emotion + embedding models download on first startup (network required)
 
-The project ships with a professional test suite (**59 tests, 74.4% coverage, <8s runtime**) using mocked ML models for fast feedback.
+- Subsequent boots are faster (local cache)
 
-```bash
-# Run all tests
-pytest tests/ -v
+- ChromaDB initializes / persists under configured directory
+  
+# ⚙️ Configuration Reference
 
-# With coverage
-pytest tests/ -v --cov=backend --cov-report=term-missing
+| Variable |	Default / Example |	Purpose |
+|----------|--------------------|---------|
+| GROQ_API_KEY |	gsk_...	| Enables streaming LLM responses |
+| GROQ_MODEL |	groq/compound-mini |	Chat model ID |
+| EMOTION_MODEL |	HF model id |	Classifier checkpoint |
+| EMBEDDING_MODEL |	all-MiniLM-L6-v2 |	RAG embeddings |
+| TOP_K_RETRIEVAL |	3	Max docs retrieved |
+| SIMILARITY_THRESHOLD |	0.4	Strict RAG threshold |
+| CRISIS_CONFIDENCE_THRESHOLD |	0.75	Emotion risk contribution gate |
+| EXPLAINER_DISPLAY_THRESHOLD |	0.05	Min token weight shown |
+| ENABLE_METRICS |	true |	Start Prometheus exporter |
+| METRICS_PORT |	8001 |	Metrics bind port |
+| BACKEND_URL |	http://localhost:8000 |	Frontend → API base URL |
 
-# Just unit tests (fastest)
-pytest tests/unit/ -v
+All settings are centralized in backend/config/settings.py and overridable via .env.
 
-# Just integration tests
-pytest tests/integration/ -v
+# 📡 API Documentation
 
-# Generate HTML coverage report
-pytest tests/ --cov=backend --cov-report=html
-# Then open htmlcov/index.html
-```
+Interactive docs: http://localhost:8000/docs
 
-### Test Architecture
+- GET /health
 
-```
-tests/
-├── conftest.py              # Shared fixtures with mocked ML models
-├── unit/                    # 41 fast unit tests (no I/O)
-│   ├── test_settings.py     # Config validation
-│   ├── test_schemas.py      # Pydantic v2 contracts
-│   ├── test_explainer.py    # Lexicon scoring + normalization
-│   └── test_rag_pipeline.py # Fallback logic + KB integrity
-├── integration/             # 15 integration tests
-│   ├── test_api.py          # FastAPI endpoint contracts
-│   └── test_orchestrator.py # Multi-agent flow
-└── _legacy/                 # Archived auto-generated tests
-```
+  Liveness + model readiness probe.
+  
+  Example response
+  
+  ```JSON
+  
+  {
+    "status": "healthy",
+    "version": "1.0.0",
+    "models_loaded": true,
+    "timestamp": "2026-08-18T18:29:22.889085"
+  }
+  ```
 
-### Coverage Highlights
+# POST /classify
 
-| Module | Coverage |
-|--------|----------|
-| `schemas.py`, `settings.py`, `orchestrator.py`, `logger.py` | **100%** |
-| `explainer.py` | **87.8%** |
-| `crisis_agent.py` | **83.3%** |
-| `metrics.py` | **77.8%** |
-| `routes.py`, `rag_pipeline.py` | **69–76%** |
-| **Total** | **74.4%** |
+Main multi-agent analysis endpoint.
 
----
+Request schema
 
-## 📡 API Reference
+| Field |	Type |	Required |	Description |
+|-------|------|-----------|--------------|
+| text |	string |	✅ |	User input (1–5000 chars) |
+| include_explanations |	bool |	no |	Enable token attributions |
+| explainer_method |	string | no |	"lexicon" (default) or "shap" |
+| session_id |	string |	no |	Conversation / UI session id |
 
-### `POST /classify`
+Request example
+```JSON
 
-Analyze text and return emotion + crisis assessment + recommendations.
-
-**Request:**
-
-```json
 {
-  "text": "I've been feeling really anxious about work lately",
+  "text": "I can't stop worrying about my job interview tomorrow, my heart won't stop racing.",
   "include_explanations": true,
-  "session_id": "optional-id-123"
+  "explainer_method": "lexicon",
+  "session_id": "session_001"
 }
 ```
 
-**Response:**
+Response example
+```JSON
 
-```json
 {
-  "emotion": "Fear / Anxiety",
-  "confidence": 0.89,
+  "emotion": "fear",
+  "emotion_display": "Fear / Anxiety",
+  "confidence": 0.995,
   "all_predictions": [
-    {"label": "Fear / Anxiety", "score": 0.89},
-    {"label": "Neutral",        "score": 0.08}
+    { "label": "fear", "score": 0.995 },
+    { "label": "surprise", "score": 0.002 }
   ],
   "recommendations": [
     {
-      "title": "4-7-8 Breathing Technique",
-      "content": "Inhale for 4 seconds, hold for 7...",
-      "relevance_score": 0.82,
-      "category": "breathing",
+      "title": "When Positive and Negative Feelings Collide",
+      "content": "It is common to feel competent yet stuck...",
+      "relevance_score": 0.3525,
+      "category": "mindfulness",
       "source": "Mental Health Knowledge Base"
     }
   ],
   "crisis_assessment": {
     "is_crisis": false,
-    "risk_level": "low",
-    "risk_score": 0.05,
-    "crisis_indicators": [],
-    "immediate_resources": ["988 Suicide & Crisis Lifeline"]
+    "risk_level": "medium",
+    "risk_score": 0.3,
+    "crisis_indicators": ["High confidence fear detected"],
+    "immediate_resources": [
+      "National Suicide Prevention Lifeline: Call or text 988",
+      "Crisis Text Line: Text HOME to 741741"
+    ]
   },
   "explanations": [
-    {"token": "anxious", "weight": 0.95, "influence": "positive"},
-    {"token": "work",    "weight": 0.40, "influence": "positive"}
+    { "token": "worrying", "weight": 0.85, "influence": "positive" },
+    { "token": "racing", "weight": 0.75, "influence": "positive" }
   ],
-  "explanation_summary": "Driven by mentions of anxious, work...",
-  "processing_time_ms": 245.5,
-  "model_version": "1.0.1",
-  "timestamp": "2026-06-26T18:40:12.430718Z"
+  "explanation_summary": "The fear classification is primarily driven by: worrying, racing.",
+  "explainer_method": "lexicon_attribution",
+  "session_id": "session_001",
+  "processing_time_ms": 461.2,
+  "timestamp": "2026-08-19T00:00:00.000000",
+  "model_version": "1.0.0"
 }
 ```
 
-### `GET /health`
+# Typical status codes
+| Code |	Meaning |
+|------|----------|
+| 200 |	Success |
+| 422 |	Validation error (empty text, schema mismatch) |
+| 500 |	Unexpected server error |
+| 503 |	Model/service unavailable |
 
-```json
-{
-  "status": "healthy",
-  "version": "1.0.1",
-  "models_loaded": true,
-  "timestamp": "2026-06-26T18:40:12Z"
-}
+# 🖥️ Frontend Guide
+
+Main app (frontend/app.py)
+
+- Emotion analysis form + example prompts
+
+- Backend health pills / offline degradation
+
+- Results:
+  
+  - Emotion gradient card
+ 
+  - Latency / risk / crisis / safety metrics
+ 
+  - Tabs: Emotions · Recommendations · Explainability · Agent Trace · Raw API
+ 
+  - Groq streaming support panel
+    
+Backend client (frontend/api_client.py)
+
+- check_health()
+
+- analyze(...)
+
+- Session ID generation
+
+- Response normalization for UI:
+  
+  - all_predictions → all_emotions
+ 
+  - token → word
+ 
+  - derived crisis_detected / override fields
+ 
+  - emotion-based recommendation fallbacks
+    
+Monitoring page (frontend/pages/1_Monitoring.py)
+
+- Streamlit multipage auto-discovery (no hard link required in app.py).
+
+- Shows:
+
+  - Total requests
+ 
+  - Crisis alerts
+ 
+  - Average latency
+ 
+  - Average confidence
+ 
+  - Emotion breakdown chart
+ 
+  - Risk-level breakdown chart
+ 
+  - Raw Prometheus text dump
+  
+- Optional explicit nav link from main app sidebar:
+
+```Python
+
+st.page_link("pages/1_Monitoring.py", label="📊 Live Monitoring")
+
 ```
 
-Full interactive docs: **http://localhost:8000/docs**
+# 📊 Observability & Metrics
 
----
+- Prometheus endpoint
 
-## ⚙️ Configuration
-
-All settings are environment-variable driven via `pydantic-settings`. Override any value in `.env`:
-
-```env
-# Application
-DEBUG=false
-LOG_LEVEL=INFO
-PORT=8000
-
-# Models
-EMOTION_MODEL=j-hartmann/emotion-english-distilroberta-base
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-MAX_SEQUENCE_LENGTH=512
-
-# RAG
-CHROMA_PERSIST_DIR=./chroma_db
-TOP_K_RETRIEVAL=5
-SIMILARITY_THRESHOLD=0.4
-FALLBACK_THRESHOLD_DELTA=0.15
-
-# Explainer
-EXPLAINER_DISPLAY_THRESHOLD=0.25
-EXPLAINER_MIN_TOKENS=3
-EXPLAINER_MAX_TOKENS=10
-
-# Crisis Detection
-CRISIS_CONFIDENCE_THRESHOLD=0.75
-
-# Monitoring
-ENABLE_METRICS=true
-METRICS_PORT=8001
+ ```
+GET http://localhost:8001/metrics
 ```
 
----
+- Core custom metrics
 
-## 📁 Project Structure
+| Metric |	Type |	Labels / notes |
+|--------|-------|-----------------|
+| mh_platform_requests_total |	Counter |	emotion, risk_level |
+| mh_platform_request_duration_ms |	Histogram	| latency buckets |
+| mh_platform_crisis_alerts_total	| Counter |	crisis detections |
+| mh_platform_confidence_score |	Histogram |	model confidence |
+| mh_platform_active_sessions |	Gauge |	active sessions |
 
-```
-Mental-Health-Agentic-AI-Platform/
-├── .github/workflows/
-│   └── ci.yml                       # GitHub Actions pipeline
-├── backend/
-│   ├── agents/                      # Multi-agent orchestration
-│   │   ├── orchestrator.py
-│   │   ├── classification_agent.py
-│   │   ├── crisis_agent.py
-│   │   ├── rag_agent.py
-│   │   └── wellness_agent.py
-│   ├── api/                         # FastAPI layer
-│   │   ├── routes.py
-│   │   ├── schemas.py               # Pydantic v2 contracts
-│   │   └── middleware.py
-│   ├── config/
-│   │   └── settings.py              # Centralized config
-│   ├── explainability/
-│   │   └── explainer.py             # Lexicon-based attribution
-│   ├── models/
-│   │   ├── classifier.py            # DistilRoBERTa wrapper
-│   │   ├── embeddings.py            # MiniLM wrapper
-│   │   └── rag_pipeline.py          # ChromaDB integration
-│   ├── monitoring/
-│   │   ├── logger.py                # structlog setup
-│   │   └── metrics.py               # Prometheus
-│   └── main.py                      # FastAPI app + lifespan
-├── frontend/
-│   └── app.py                       # Streamlit dashboard
-├── tests/
-│   ├── conftest.py                  # Shared fixtures
-│   ├── unit/                        # 41 unit tests
-│   └── integration/                 # 15 integration tests
-├── docker/                          # Container configs
-│   ├── Dockerfile.backend
-│   ├── Dockerfile.frontend
-│   └── docker-compose.yml
-├── pyproject.toml                   # pytest + coverage + ruff config
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+# Structured logs
 
----
+structlog emits JSON events for:
 
-## 🐳 Docker Deployment
+- request received
 
-```bash
-# Build and start everything
-docker-compose -f docker/docker-compose.yml up --build
+- agent start/complete
 
-# Background mode
-docker-compose -f docker/docker-compose.yml up -d --build
+- RAG fallback decisions
 
-# View logs
-docker-compose logs -f backend
+- explainer method completion
 
-# Stop
-docker-compose down
-```
+- errors with stack context (where configured)
 
----
+# 🛡️ Safety & Ethics
 
-## 📊 Implementation Status
+- This system is intentionally conservative on risk:
 
-Honest snapshot of what's built vs planned. This project values **transparency over marketing**.
+  1. Detect crisis language + high-distress emotion signals
+  
+  2. Escalate UI messaging to emergency resources
+  
+  3. Suppress free-form generative advice on crisis path
+  
+  4. Disclose research-only scope in UI and docs
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Emotion Classifier (DistilRoBERTa, 7-class) | ✅ Production | |
-| Multi-Agent Orchestrator (async) | ✅ Production | 100% test coverage |
-| RAG Pipeline (ChromaDB + fallback) | ✅ Production | |
-| Crisis Detection (keyword + confidence) | ✅ Production | |
-| Token Explainability (lexicon-based) | ✅ Production | SHAP planned for v1.2 |
-| Streamlit Dashboard | ✅ Production | |
-| FastAPI Backend + auto-docs | ✅ Production | |
-| Test Suite (59 tests, 74.4% coverage) | ✅ Production | |
-| GitHub Actions CI | ✅ Production | |
-| Prometheus Metrics | 🟡 Beta | Endpoint live; dashboards pending |
-| Docker Compose Deployment | 🟡 Beta | Works locally; cloud TBD |
-| Live Public Demo | 🔴 Roadmap | v1.2 target |
-| ML Evaluation Harness (F1 / confusion matrix) | 🔴 Roadmap | v1.1 target |
-| Fine-tuned Domain Model | 🔴 Roadmap | v1.2 target |
-| LangGraph Migration | 🔴 Roadmap | v1.3 target |
-| MLflow Experiment Tracking | 🔴 Roadmap | v1.3 target |
+- What this system does not do
 
-See [ROADMAP.md](ROADMAP.md) for upcoming work.
+  - Medical diagnosis
+  
+  - Treatment prescription
+  
+  - Claim to replace therapists / clinicians
+  
+  - Guarantee crisis detection completeness
 
----
+- If you are in crisis, contact local emergency services or:
 
-## 🚨 Troubleshooting
+  - US: call/text 988
+  
+  - US: text HOME to 741741
+  
+  - International resources via IASP directories
 
-<details>
-<summary><strong>ImportError: cannot import name 'cached_download'</strong></summary>
+# 📈 Performance Snapshot
 
-Newer `huggingface_hub` removed `cached_download`. Fix:
+- Observed local CPU-oriented ranges (hardware dependent):
 
-```bash
-pip install sentence-transformers==2.7.0
+| Path |	Typical latency |
+|------|------------------|
+| Classification + crisis + RAG (no heavy explainer) |	~50–500 ms |
+| With SHAP explanations enabled |	~1–3+ s |
+| Health endpoint |	low milliseconds |
+| First model load (cold start) |	several seconds |
+
+- Optimizations used:
+
+  - Parallel agent stage after classification
+  
+  - Lazy SHAP initialization
+  
+  - Cached model loading at app startup
+  
+  - Frontend streaming for LLM tokens (perceived responsiveness)
+
+# 🧪 Testing
+
+```Bash
+
+# Activate venv first
+pytest -q
+
+# Optional coverage
+pytest --cov=backend --cov-report=term-missing
 ```
 
-</details>
+# Manual smoke checklist 
 
-<details>
-<summary><strong>ModuleNotFoundError: No module named 'backend'</strong></summary>
+ - GET /health → healthy + models_loaded=true
+   
+ - POST /classify normal sadness/fear/joy inputs
+   
+ - Crisis input triggers is_crisis=true + resources
+   
+ - Recommendations appear (RAG or curated fallback)
+   
+ - Lexicon explanations return tokens
+   
+ - SHAP mode works or cleanly falls back
 
-Run from project root, not inside `backend/`:
+ - Streamlit analyzes successfully against backend
+   
+ - Backend-down UI degrades gracefully
+   
+ - Monitoring page reads :8001/metrics
 
-```bash
-cd Mental-Health-Agentic-AI-Platform
-python -m uvicorn backend.main:app --reload
-```
+   
+# 🧰 Troubleshooting
 
-</details>
+| Symptom |	Likely cause |	Fix |
+|---------|--------------|------|
+| GROQ_API_KEY not found |	.env not loaded / wrong path |	Put .env in project root; restart process |
+| Backend 500 on /classify |	missing settings field / agent error |	Check uvicorn traceback; verify settings.py |
+| Empty recommendations on joy/love |	weak RAG similarity |	Expected; curated fallbacks should fill UI |
+| Empty explanations |	lexicon miss / high display threshold |	Lower EXPLAINER_DISPLAY_THRESHOLD; try richer emotional wording |
+| Monitoring page missing |	pages folder not discovered |	Ensure frontend/pages/1_Monitoring.py; restart Streamlit |
+| Streamlit duplicate element ID |	missing widget key= |	Add unique keys to toggles/radios |
+| CORS errors in browser |	origin not allowed |	Confirm CORS includes http://localhost:8501 |
+| Model download failures |	network / HF access |	Retry; check firewall; verify model id |
 
-<details>
-<summary><strong>ChromaDB persistence errors on Windows</strong></summary>
 
-Stop backend, then:
+# 📌 Resume Highlights
 
-```powershell
-Remove-Item -Recurse -Force .\chroma_db
-```
+- Engineered a multi-agent FastAPI orchestration system (sequential classification + parallel crisis/RAG), keeping end-to-end analysis in sub-second ranges on CPU for non-SHAP paths.
+- Fine-tuned and productionized a DistilRoBERTa emotion classifier, published on HuggingFace, and integrated it into a real-time inference service.
+- Built a RAG pipeline with ChromaDB + MiniLM embeddings, including two-tier similarity thresholds and curated fallback recommendations.
+- Implemented safety-critical crisis detection combining keyword signals and confidence-aware risk scoring, with emergency resource routing and generative-response suppression.
+- Delivered hybrid explainability (fast lexicon attributions + optional SHAP) and a polished Streamlit UX with agent-trace visualization.
+- Added observability via Prometheus metrics, structured JSON logging, and a live monitoring dashboard.
+  
+# ⚖️ Disclaimer
 
-Restart — collection will be re-indexed automatically.
+- This platform is an AI research prototype and is not a clinical device, diagnostic service, or substitute for professional mental health care.
 
-</details>
+If you or someone else may be in danger, contact emergency services immediately or local crisis resources (in the US: 988, Crisis Text Line 741741).
 
-<details>
-<summary><strong>Force CPU even if CUDA is available</strong></summary>
+# 📄 License & Credits
 
-In `backend/models/classifier.py`, hard-code `device = -1`. Or set `CUDA_VISIBLE_DEVICES=""` env var.
+- License: See LICENSE
 
-</details>
+- Author: Jiya Yadav
 
----
+- Model hosting: HuggingFace
 
-## 🤝 Contributing
+- LLM inference: Groq
 
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. **Make sure tests pass:** `pytest tests/ -v`
-4. **Maintain coverage ≥ 70%:** `pytest --cov=backend --cov-fail-under=70`
-5. Commit using conventional commits: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`
-6. Push & open a Pull Request
+- Core libraries: FastAPI, Streamlit, PyTorch, Transformers, ChromaDB, Prometheus
 
-CI will automatically run tests on Python 3.10 + 3.11.
 
----
-
-## ⚠️ Safety & Ethics
-
-This platform **cannot**:
-
-- Diagnose mental health conditions
-- Replace licensed therapists or psychiatrists
-- Handle emergency crises
-
-**If you or someone you know is in crisis:**
-
-- 🇺🇸 **988** Suicide & Crisis Lifeline (call or text)
-- 🇺🇸 Text **HOME** to **741741** (Crisis Text Line)
-- 🌍 [International directory](https://www.iasp.info/resources/Crisis_Centres/)
-
----
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-- [HuggingFace Transformers](https://huggingface.co/) — model ecosystem
-- [j-hartmann](https://huggingface.co/j-hartmann/emotion-english-distilroberta-base) — base emotion model
-- [ChromaDB](https://www.trychroma.com/) — embedded vector store
-- [FastAPI](https://fastapi.tiangolo.com/) & [Streamlit](https://streamlit.io/) — the magic that makes this work
-
----
-
-<p align="center">
-  Built with ❤️ by <a href="https://github.com/JIYA-YDV">Jiya Yadav</a> for mental health awareness.<br>
-  ⭐ If this project helps you, please consider starring the repo!
-</p>
+<p align="center"> Built with care by <a href="https://github.com/JIYA-YDV">Jiya Yadav</a> for mental health awareness and responsible AI engineering.<br/> ⭐ If this project helps you learn or build, please star the repository. </p> 
